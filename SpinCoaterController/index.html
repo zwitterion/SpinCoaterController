@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpinCoater</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-color: #e0e0e0;
+            --neon-blue: #00f3ff;
+            --neon-green: #00ff41;
+            --neon-red: #ff003c;
+            --neon-yellow: #ffee00;
+            --border-color: #333;
+        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+        .card { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .card h2 { margin-top: 0; color: var(--neon-blue); border-bottom: 1px solid var(--border-color); padding-bottom: 10px; font-size: 1.1em; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .gauge-container { text-align: center; margin: 20px 0; }
+        .rpm-value { font-size: 3.5em; font-weight: bold; color: var(--neon-green); text-shadow: 0 0 15px rgba(0, 255, 65, 0.2); font-family: monospace; }
+        .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: center; font-size: 0.9em; color: #aaa; margin-bottom: 15px; }
+        .status-val { color: #fff; font-weight: bold; font-size: 1.1em; }
+        
+        .controls { display: flex; gap: 10px; justify-content: center; margin-top: 15px; }
+        button { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; text-transform: uppercase; transition: all 0.2s; color: #000; }
+        .btn-primary { background: var(--neon-blue); box-shadow: 0 0 8px var(--neon-blue); }
+        .btn-success { background: var(--neon-green); box-shadow: 0 0 8px var(--neon-green); }
+        .btn-danger { background: var(--neon-red); color: #fff; box-shadow: 0 0 8px var(--neon-red); }
+        .btn-warn { background: var(--neon-yellow); box-shadow: 0 0 8px var(--neon-yellow); }
+        button:hover { transform: translateY(-2px); filter: brightness(1.2); }
+        
+        input, select { background: #2a2a2a; border: 1px solid #444; color: #fff; padding: 8px; border-radius: 4px; width: 100%; box-sizing: border-box; margin-bottom: 10px; }
+        input:focus, select:focus { outline: none; border-color: var(--neon-blue); }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85em; }
+        th, td { text-align: left; padding: 6px; border-bottom: 1px solid #333; }
+        th { color: var(--neon-blue); }
+        
+        .alert-box {
+            background-color: rgba(255, 0, 60, 0.1);
+            border: 1px solid var(--neon-red);
+            color: var(--neon-red);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: bold;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 0, 60, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 0, 60, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 0, 60, 0); }
+        }
+        .hidden { display: none; }
+        .row { display: flex; gap: 10px; align-items: center; }
+        .col { flex: 1; }
+        label { font-size: 0.8em; color: #888; text-transform: uppercase; }
+        
+        [hidden] { display: none !important; }
+        
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(2px); }
+        .modal-content { background: var(--card-bg); border: 1px solid var(--neon-blue); padding: 25px; border-radius: 12px; width: 90%; max-width: 350px; box-shadow: 0 0 25px rgba(0, 243, 255, 0.15); text-align: center; }
+        .modal-btns { display: flex; justify-content: center; gap: 15px; margin-top: 20px; }
+        
+        .help-content { max-width: 500px; text-align: left; }
+        .help-text { max-height: 60vh; overflow-y: auto; padding-right: 10px; font-size: 0.9em; line-height: 1.4; color: #ccc; }
+        .help-text h4 { color: var(--neon-green); margin: 15px 0 5px 0; border-bottom: 1px solid #333; }
+        .help-text ul { padding-left: 20px; margin: 5px 0; }
+        .help-text li { margin-bottom: 3px; }
+        .help-text::-webkit-scrollbar { width: 8px; }
+        .help-text::-webkit-scrollbar-track { background: #111; }
+        .help-text::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Card 1: Dashboard -->
+        <div class="card">
+            <h2>Dashboard</h2>
+            <div class="status-grid">
+                <div>Status: <span id="sysState" class="status-val" style="color: var(--neon-blue)">IDLE</span></div>
+                <div>Conn: <span id="connStatus" class="status-val">...</span></div>
+            </div>
+            <div class="gauge-container" style="position: relative; width: 220px; height: 220px; margin: 10px auto;">
+                <canvas id="rpmGauge" width="220" height="220"></canvas>
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; width: 100%;">
+                    <div id="rpmDisplay" class="rpm-value" style="font-size: 3em; line-height: 1;">0</div>
+                    <div style="color: #888; font-size: 0.9em; margin-top: 5px;">TARGET: <span id="targetDisplay">0</span></div>
+                </div>
+            </div>
+            <div class="status-grid">
+                <div>Profile: <span id="runProfileName" class="status-val">-</span></div>
+                <div>Step: <span id="stepDisplay" class="status-val">-</span></div>
+                <div style="grid-column: span 2; margin-top: 5px;">Time Left: <span id="timeDisplay" class="status-val">0</span> ms</div>
+            </div>
+            <div id="errorAlert" class="alert-box hidden">
+                <span style="font-size: 1.5em;">⚠️</span>
+                <span id="errorMsg"></span>
+            </div>
+            <div class="controls">
+                <button class="btn-success" onclick="runProfile()">START</button>
+                <button class="btn-warn" onclick="sendCmd('pause')">PAUSE</button>
+                <button class="btn-danger" onclick="sendCmd('stop')">STOP</button>
+            </div>
+        </div>
+
+        <!-- Card 1.5: Live Chart -->
+        <div class="card">
+            <h2>Live RPM Chart</h2>
+            <canvas id="rpmChart" style="width: 100%; height: 200px; background: #111; border-radius: 4px;"></canvas>
+        </div>
+
+        <!-- Card 1.6: Manual Mode -->
+        <div class="card">
+            <h2>Manual Control</h2>
+            <div class="row">
+                <button id="btnManual" onclick="toggleManual()" class="btn-warn" style="flex:1">Enable Manual Mode</button>
+            </div>
+            <div id="manualControls" class="hidden" style="margin-top: 15px;">
+                <label>Target RPM: <span id="manualRpmVal" style="color:var(--neon-green)">0</span></label>
+                <input type="range" id="manualSlider" min="0" max="10000" step="100" value="0" oninput="updateManualInput(this.value)" onchange="sendManualRpm(this.value)" style="width:100%; margin: 10px 0;">
+                <div class="row">
+                    <button onclick="setManualPreset(0)" class="btn-primary">0</button>
+                    <button onclick="setManualPreset(1000)" class="btn-primary">1k</button>
+                    <button onclick="setManualPreset(3000)" class="btn-primary">3k</button>
+                    <button onclick="setManualPreset(5000)" class="btn-primary">5k</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 2: Profile Editor -->
+        <div class="card">
+            <h2>Profile Editor</h2>
+            <div class="row">
+                <select id="profileSelect" class="col" onchange="loadProfile()"></select>
+            </div>
+            <div class="row" style="margin-top: 10px;">
+                <button onclick="createNewProfile()" class="btn-primary" style="flex:1">New</button>
+                <button onclick="deleteProfile()" class="btn-danger" style="flex:1">Delete</button>
+            </div>
+            
+            <div id="editor" class="hidden" style="margin-top: 20px; border-top: 1px solid #333; padding-top: 15px;">
+                <label>Profile Name</label>
+                <input type="text" id="pName">
+                
+                <table id="stepsTable">
+                    <thead>
+                        <tr>
+                            <th>RPM</th>
+                            <th>Ramp ms</th>
+                            <th>Hold ms</th>
+                            <th>Type</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="stepsBody"></tbody>
+                </table>
+                
+                <div class="controls" style="margin-top: 15px;">
+                    <button onclick="addStep()" class="btn-primary">+ Step</button>
+                    <button onclick="saveProfile()" class="btn-success">Save</button>
+                    <button onclick="closeEditor()" class="btn-warn">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 3: PID Settings -->
+        <div class="card">
+            <h2>PID Controller <button onclick="showHelp()" style="float:right; padding: 2px 8px; font-size: 0.7em; background: transparent; border: 1px solid var(--neon-blue); color: var(--neon-blue); cursor: pointer;">?</button></h2>
+            <div class="row">
+                <div class="col"><label>Kp</label><input type="number" step="0.01" id="kp"></div>
+                <div class="col"><label>Ki</label><input type="number" step="0.01" id="ki"></div>
+                <div class="col"><label>Kd</label><input type="number" step="0.01" id="kd"></div>
+            </div>
+            <div class="row">
+                <div class="col"><label>Filter Alpha (0-1)</label><input type="number" step="0.01" max="1" min="0" id="alpha"></div>
+                <div class="col"><label>Windup Range</label><input type="number" step="10" id="windup"></div>
+            </div>
+            <button onclick="savePid()" class="btn-primary" style="width: 100%; margin-top: 10px;">Save Settings</button>
+            <button onclick="startTune()" class="btn-warn" style="width: 100%; margin-top: 10px;">Auto Tune PID</button>
+        </div>
+
+        <!-- Card 4: WiFi Settings -->
+        <div class="card">
+            <h2>WiFi Configuration</h2>
+            <label>SSID</label><input type="text" id="ssid">
+            <label>Password</label><input type="password" id="pass">
+            <button onclick="saveWifi()" class="btn-primary" style="width: 100%; margin-top: 10px;">Save WiFi</button>
+        </div>
+
+        <!-- Card 5: System -->
+        <div class="card">
+            <h2>System Options <button onclick="showCalHelp()" style="float:right; padding: 2px 8px; font-size: 0.7em; background: transparent; border: 1px solid var(--neon-blue); color: var(--neon-blue); cursor: pointer;">?</button></h2>
+            <label>Absolute Max RPM</label><input type="number" id="maxRPM">
+            <button onclick="saveSystem()" class="btn-primary" style="width: 100%; margin-bottom: 10px;">Save System Settings</button>
+            <button onclick="startCal()" class="btn-warn" style="width: 100%; margin-bottom: 10px;">Calibrate ESC</button>
+            <div class="row">
+                <button onclick="reboot()" class="btn-warn" style="flex:1">Reboot</button>
+                <button onclick="factoryReset()" class="btn-danger" style="flex:1">Factory Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="helpModal" class="modal" hidden>
+        <div class="modal-content help-content">
+            <h3 style="color: var(--neon-blue); margin-top: 0;">PID Tuning Guide</h3>
+            <div class="help-text">
+                <h4>Low Pass Filter (Alpha)</h4>
+                <p>Filters sensor noise. Range 0.0 - 1.0.</p>
+                <ul>
+                    <li><strong>1.0:</strong> No filtering (Raw).</li>
+                    <li><strong>0.1:</strong> Heavy filtering (Slow response).</li>
+                    <li><strong>Recommended:</strong> 0.3 - 0.8 depending on noise.</li>
+                </ul>
+                
+                <h4>Integral Windup Range</h4>
+                <p>Prevents overshoot during ramp-up.</p>
+                <ul>
+                    <li>Defines RPM error range where 'I' term is active.</li>
+                    <li><strong>Too Small:</strong> Target never reached.</li>
+                    <li><strong>Too Large:</strong> Overshoot.</li>
+                    <li><strong>Recommended:</strong> 300-500 RPM.</li>
+                </ul>
+
+                <h4>PID Constants</h4>
+                <p><strong>Kp (Proportional):</strong> Immediate reaction force. Increase until oscillation starts.</p>
+                <p><strong>Ki (Integral):</strong> Fixes steady-state error. Increase to reach exact target.</p>
+                <p><strong>Kd (Derivative):</strong> Dampens oscillation. Increase to reduce overshoot.</p>
+            </div>
+            <div class="modal-btns">
+                <button onclick="closeHelp()" class="btn-primary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ESC Calibration Help Modal -->
+    <div id="calHelpModal" class="modal" hidden>
+        <div class="modal-content help-content">
+            <h3 style="color: var(--neon-blue); margin-top: 0;">ESC Calibration Guide</h3>
+            <div class="help-text">
+                <h4>What is it?</h4>
+                <p>ESC Calibration synchronizes the controller's throttle signal (1000-2000us) with the ESC's input range.</p>
+                
+                <h4>When to perform it?</h4>
+                <ul>
+                    <li><strong>First Setup:</strong> Essential for new builds.</li>
+                    <li><strong>Deadband Issues:</strong> If motor doesn't spin until high throttle.</li>
+                    <li><strong>Top Speed:</strong> If motor reaches max speed too early or never reaches it.</li>
+                    <li><strong>New Hardware:</strong> After replacing ESC or Arduino.</li>
+                </ul>
+
+                <h4>Process</h4>
+                <p>The wizard sends MAX throttle (2000us) on boot to enter calibration mode, then MIN throttle (1000us) to save the range.</p>
+            </div>
+            <div class="modal-btns">
+                <button onclick="closeCalHelp()" class="btn-primary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Calibration Modal -->
+    <div id="calModal" class="modal" hidden>
+        <div class="modal-content">
+            <h3 style="color: var(--neon-yellow); margin-top: 0;">ESC Calibration</h3>
+            <div id="calStep0">
+                <p><strong>WARNING:</strong>Remove samples from spin coater if possible.</p>
+                <p>1. Disconnect ESC Power (Battery/Plug).</p>
+                <p>2. Keep USB connected to Arduino.</p>
+                <p>3. Click Start to send MAX throttle.</p>
+                <div class="modal-btns">
+                    <button onclick="closeCal()" class="btn-warn">Cancel</button>
+                    <button onclick="calNext(1)" class="btn-success">Start</button>
+                </div>
+            </div>
+            <div id="calStep1" hidden>
+                <p style="color: var(--neon-red); font-weight:bold;">Sending MAX Throttle (2000us)</p>
+                <p>1. Connect ESC Power NOW.</p>
+                <p>2. Wait for "Musical Tone" then "2 Beeps".</p>
+                <p>3. Immediately click Next.</p>
+                <div class="modal-btns">
+                    <button onclick="calNext(2)" class="btn-primary">Next (Low Throttle)</button>
+                </div>
+            </div>
+            <div id="calStep2" hidden>
+                <p style="color: var(--neon-green); font-weight:bold;">Sending MIN Throttle (1000us)</p>
+                <p>1. Wait for "Arming Beeps".</p>
+                <p>2. Calibration Complete.</p>
+                <div class="modal-btns">
+                    <button onclick="calFinish()" class="btn-success">Finish</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Confirmation Modal -->
+    <div id="customModal" class="modal" hidden>
+        <div class="modal-content">
+            <h3 id="modalTitle" style="color: var(--neon-blue); margin-top: 0;">Confirmation</h3>
+            <p id="confirmText" style="font-size: 1.1em; margin: 20px 0;"></p>
+            <div class="modal-btns">
+                <button id="btnCancel" onclick="closeConfirm(false)" class="btn-warn">Cancel</button>
+                <button id="btnOk" onclick="closeConfirm(true)" class="btn-success">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws;
+        let profiles = [];
+        let currentProfile = { steps: [] };
+        let manualMode = false;
+        let isCalibrated = false;
+        
+        // Chart Data
+        const maxDataPoints = 100;
+        let chartData = { labels: [], rpm: [], target: [] };
+
+        function connect() {
+            // console.log("Connecting to WebSocket...");
+            ws = new WebSocket('ws://' + location.host + '/ws');
+            ws.onopen = () => { 
+                // console.log("WebSocket Connected");
+                document.getElementById('connStatus').innerText = 'Connected'; 
+            };
+            ws.onclose = () => { 
+                // console.log("WebSocket Disconnected");
+                document.getElementById('connStatus').innerText = 'Disconnected'; 
+                setTimeout(connect, 2000); 
+            };
+            ws.onmessage = (e) => {
+                const data = JSON.parse(e.data);
+                updateDashboard(data);
+            };
+        }
+
+        function updateDashboard(data) {
+            document.getElementById('rpmDisplay').innerText = Math.round(data.rpm);
+            document.getElementById('targetDisplay').innerText = Math.round(data.target);
+            
+            const stateEl = document.getElementById('sysState');
+            stateEl.innerText = data.state;
+            stateEl.style.color = (data.state === "EMERGENCY" || data.state === "ERROR") ? "var(--neon-red)" : (data.state === "TUNING" || data.state === "MANUAL" || data.state === "CALIBRATING" ? "var(--neon-yellow)" : "var(--neon-blue)");
+            document.getElementById('stepDisplay').innerText = data.step || "-";
+            document.getElementById('timeDisplay').innerText = data.timeRem || "0";
+            
+            if (data.error) {
+                document.getElementById('errorMsg').innerText = data.error;
+                document.getElementById('errorAlert').classList.remove('hidden');
+            } else {
+                document.getElementById('errorAlert').classList.add('hidden');
+            }
+            
+            if (data.pId !== undefined && profiles.length > 0) {
+                const p = profiles.find(x => x.id === data.pId);
+                document.getElementById('runProfileName').innerText = p ? p.name : "Unknown";
+            }
+            
+            let maxRpmVal = parseInt(document.getElementById('maxRPM').value) || 10000;
+            drawGauge(data.rpm, maxRpmVal);
+            
+            // Sync Manual UI
+            const isManual = data.state === "MANUAL";
+            if (isManual !== manualMode) {
+                manualMode = isManual;
+                if (manualMode) {
+                    document.getElementById('manualControls').classList.remove('hidden');
+                    document.getElementById('btnManual').innerText = "Disable Manual Mode";
+                    document.getElementById('btnManual').className = 'btn-danger';
+                } else {
+                    document.getElementById('manualControls').classList.add('hidden');
+                    document.getElementById('btnManual').innerText = "Enable Manual Mode";
+                    document.getElementById('btnManual').className = 'btn-warn';
+                }
+            }
+            document.getElementById('manualSlider').max = maxRpmVal;
+            
+            updateChart(data.rpm, data.target);
+        }
+
+        function drawGauge(current, max) {
+            const canvas = document.getElementById('rpmGauge');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            const cx = w / 2;
+            const cy = h / 2;
+            const r = (w / 2) - 15;
+            const startAngle = 0.75 * Math.PI;
+            const endAngle = 2.25 * Math.PI;
+            const totalAngle = endAngle - startAngle;
+            
+            ctx.clearRect(0, 0, w, h);
+            
+            // Background
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, startAngle, endAngle);
+            ctx.lineWidth = 12;
+            ctx.strokeStyle = '#333';
+            ctx.lineCap = 'round';
+            ctx.stroke();
+            
+            // Active
+            let val = Math.max(0, Math.min(current, max));
+            let valAngle = startAngle + (totalAngle * (val / max));
+            
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, startAngle, valAngle);
+            ctx.lineWidth = 12;
+            ctx.strokeStyle = '#00ff41'; // Neon Green
+            ctx.lineCap = 'round';
+            ctx.stroke();
+        }
+
+        function updateChart(rpm, target) {
+            const ctx = document.getElementById('rpmChart').getContext('2d');
+            const width = ctx.canvas.width = ctx.canvas.clientWidth;
+            const height = ctx.canvas.height = ctx.canvas.clientHeight;
+            
+            // Add Data
+            chartData.rpm.push(rpm);
+            chartData.target.push(target);
+            if (chartData.rpm.length > maxDataPoints) {
+                chartData.rpm.shift();
+                chartData.target.shift();
+            }
+            
+            // Clear
+            ctx.clearRect(0, 0, width, height);
+            
+            // Draw Grid & Background
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for(let i=0; i<5; i++) {
+                let y = height - (height * (i/4));
+                ctx.moveTo(0, y); ctx.lineTo(width, y);
+            }
+            ctx.stroke();
+            
+            // Helper to map value to Y
+            const maxVal = Math.max(Math.max(...chartData.rpm), Math.max(...chartData.target), 1000) * 1.1;
+            const mapY = (val) => height - ((val / maxVal) * height);
+            const stepX = width / (maxDataPoints - 1);
+            
+            // Draw Line Helper
+            const drawLine = (data, color) => {
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                data.forEach((val, i) => {
+                    let x = i * stepX;
+                    let y = mapY(val);
+                    if(i===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+            }
+            
+            drawLine(chartData.target, '#00f3ff'); // Neon Blue for Target
+            drawLine(chartData.rpm, '#00ff41');    // Neon Green for RPM
+        }
+
+        function sendCmd(cmd) { fetch('/' + cmd, { method: 'POST' }); }
+
+        function runProfile() {
+            const id = document.getElementById('profileSelect').value;
+            if (!isCalibrated) {
+                showConfirm("Warning: ESC not calibrated. Motor behavior may be unpredictable. Continue?").then(ok => { if(ok) doRun(id); });
+                return;
+            }
+            doRun(id);
+        }
+        
+        function doRun(id) {
+            if (id) {
+                fetch('/run/' + id, { method: 'POST' });
+            } else {
+                showAlert("Please select a profile first.");
+            }
+        }
+
+        async function fetchProfiles() {
+            // console.log("Fetching profiles...");
+            try {
+                const res = await fetch('/profiles?_=' + Date.now());
+                // console.log("Profiles response:", res.status);
+                profiles = await res.json();
+                // console.log("Profiles data:", profiles);
+                const sel = document.getElementById('profileSelect');
+                sel.innerHTML = '<option value="" disabled selected>Select a Profile</option>';
+                profiles.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.id;
+                    opt.innerText = p.name;
+                    sel.appendChild(opt);
+                });
+            } catch (e) { /* console.error("Fetch Profiles Error:", e); */ }
+        }
+
+        async function loadProfile() {
+            const id = document.getElementById('profileSelect').value;
+            if (!id) return;
+            const res = await fetch('/profiles?id=' + id + '&_=' + Date.now());
+            currentProfile = await res.json();
+            openEditor();
+        }
+
+        function createNewProfile() {
+            currentProfile = { id: 255, name: "New Profile", steps: [] };
+            openEditor();
+        }
+
+        function openEditor() {
+            document.getElementById('editor').classList.remove('hidden');
+            document.getElementById('pName').value = currentProfile.name;
+            renderSteps();
+        }
+
+        function closeEditor() { document.getElementById('editor').classList.add('hidden'); }
+
+        function renderSteps() {
+            const tbody = document.getElementById('stepsBody');
+            tbody.innerHTML = '';
+            if (!currentProfile.steps) currentProfile.steps = [];
+            currentProfile.steps.forEach((s, i) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><input type="number" value="${s.targetRPM}" onchange="updateStep(${i}, 'targetRPM', this.value)" style="width: 70px"></td>
+                    <td><input type="number" value="${s.rampDurationMs}" onchange="updateStep(${i}, 'rampDurationMs', this.value)" style="width: 70px"></td>
+                    <td><input type="number" value="${s.holdDurationMs}" onchange="updateStep(${i}, 'holdDurationMs', this.value)" style="width: 70px"></td>
+                    <td>
+                        <select onchange="updateStep(${i}, 'rampType', this.value)" style="width: 70px">
+                            <option value="0" ${s.rampType==0?'selected':''}>Lin</option>
+                            <option value="1" ${s.rampType==1?'selected':''}>Exp</option>
+                            <option value="2" ${s.rampType==2?'selected':''}>S-C</option>
+                        </select>
+                    </td>
+                    <td><button onclick="removeStep(${i})" class="btn-danger" style="padding: 6px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/><path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/></svg></button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateStep(idx, field, val) { currentProfile.steps[idx][field] = parseInt(val); }
+
+        function addStep() {
+            if (!currentProfile.steps) currentProfile.steps = [];
+            currentProfile.steps.push({ startRPM: 0, targetRPM: 1000, rampDurationMs: 5000, holdDurationMs: 10000, rampType: 0 });
+            renderSteps();
+        }
+
+        function removeStep(idx) {
+            currentProfile.steps.splice(idx, 1);
+            renderSteps();
+        }
+
+        async function saveProfile() {
+            currentProfile.name = document.getElementById('pName').value;
+            await fetch('/profiles', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(currentProfile)
+            });
+            closeEditor();
+            fetchProfiles();
+        }
+
+        async function deleteProfile() {
+            const id = document.getElementById('profileSelect').value;
+            if(id && await showConfirm('Delete this profile?')) {
+                await fetch('/profiles?id=' + id, { method: 'DELETE' });
+                fetchProfiles();
+            }
+        }
+
+        async function loadSettings() {
+            // console.log("Fetching settings...");
+            try {
+                const res = await fetch('/settings?_=' + Date.now());
+                // console.log("Settings response:", res.status);
+                const data = await res.json();
+                // console.log("Settings data:", data);
+                document.getElementById('kp').value = data.pid.kp;
+                document.getElementById('ki').value = data.pid.ki;
+                document.getElementById('kd').value = data.pid.kd;
+                document.getElementById('alpha').value = data.pid.alpha || 1.0;
+                document.getElementById('windup').value = data.pid.windup || 500;
+                document.getElementById('maxRPM').value = data.sys.maxRPM || 10000;
+                isCalibrated = data.sys.calibrated || false;
+                document.getElementById('ssid').value = data.wifi.ssid;
+            } catch (e) { /* console.error("Fetch Settings Error:", e); */ }
+        }
+
+        async function savePid() {
+            const data = {
+                pid: {
+                    kp: parseFloat(document.getElementById('kp').value),
+                    ki: parseFloat(document.getElementById('ki').value),
+                    kd: parseFloat(document.getElementById('kd').value),
+                    alpha: parseFloat(document.getElementById('alpha').value),
+                    windup: parseFloat(document.getElementById('windup').value)
+                }
+            };
+            await fetch('/settings', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+            await showAlert('PID Settings Saved');
+        }
+        
+        async function saveSystem() {
+            const data = {
+                sys: {
+                    maxRPM: parseInt(document.getElementById('maxRPM').value)
+                }
+            };
+            if (await showConfirm("Save System Settings?")) {
+                await fetch('/settings', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+                await showAlert('System Settings Saved. Reboot recommended.');
+            }
+        }
+
+        async function startTune() {
+            if (await showConfirm("Start Auto-Tuning? Motor will spin!")) {
+                await fetch('/tune', { method: 'POST' });
+                await showAlert("Tuning started. Please wait...");
+            }
+        }
+
+        async function saveWifi() {
+            const data = {
+                wifi: {
+                    ssid: document.getElementById('ssid').value,
+                    pass: document.getElementById('pass').value
+                }
+            };
+            if (await showConfirm("Save WiFi Credentials?")) {
+                await fetch('/settings', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+                await showAlert('WiFi Saved. Reboot required.');
+            }
+        }
+
+        async function factoryReset() {
+            if (await showConfirm("Are you sure? This will erase all settings and profiles.")) {
+                await fetch('/reset', { method: 'POST' });
+                await showAlert("Reset complete. Device will reboot.");
+                setTimeout(() => location.reload(), 5000);
+            }
+        }
+
+        async function reboot() {
+            if (await showConfirm("Reboot device?")) {
+                await fetch('/reboot', { method: 'POST' });
+                await showAlert("Rebooting...");
+                setTimeout(() => location.reload(), 5000);
+            }
+        }
+
+        let confirmResolver;
+        
+        function showModal(text, isConfirm) {
+            document.getElementById('modalTitle').innerText = isConfirm ? "Confirmation" : "Notification";
+            document.getElementById('confirmText').innerText = text;
+            document.getElementById('btnCancel').hidden = !isConfirm;
+            document.getElementById('btnOk').innerText = isConfirm ? "Confirm" : "OK";
+            document.getElementById('customModal').hidden = false;
+            return new Promise(resolve => { confirmResolver = resolve; });
+        }
+
+        function showConfirm(text) { return showModal(text, true); }
+        function showAlert(text) { return showModal(text, false); }
+
+        function closeConfirm(result) {
+            document.getElementById('customModal').hidden = true;
+            if (confirmResolver) confirmResolver(result);
+        }
+
+        function showHelp() { document.getElementById('helpModal').hidden = false; }
+        function closeHelp() { document.getElementById('helpModal').hidden = true; }
+
+        function showCalHelp() { document.getElementById('calHelpModal').hidden = false; }
+        function closeCalHelp() { document.getElementById('calHelpModal').hidden = true; }
+
+        function startCal() {
+            document.getElementById('calModal').hidden = false;
+            document.getElementById('calStep0').hidden = false;
+            document.getElementById('calStep1').hidden = true;
+            document.getElementById('calStep2').hidden = true;
+        }
+        function closeCal() {
+            document.getElementById('calModal').hidden = true;
+            fetch('/stop', { method: 'POST' }); // Ensure safety
+        }
+        async function calNext(step) {
+            if (step === 1) {
+                await fetch('/calibrate', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({throttle: 2000}) });
+                document.getElementById('calStep0').hidden = true;
+                document.getElementById('calStep1').hidden = false;
+            } else if (step === 2) {
+                await fetch('/calibrate', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({throttle: 1000}) });
+                document.getElementById('calStep1').hidden = true;
+                document.getElementById('calStep2').hidden = false;
+            }
+        }
+        async function calFinish() {
+            await fetch('/stop', { method: 'POST' });
+            document.getElementById('calModal').hidden = true;
+            
+            // Save calibration flag
+            const data = { sys: { calibrated: true } };
+            await fetch('/settings', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+            isCalibrated = true;
+            
+            await showAlert("Calibration Sequence Finished.");
+        }
+
+        async function toggleManual() {
+            if (!manualMode) {
+                if (!isCalibrated && !await showConfirm("Warning: ESC not calibrated. Continue?")) return;
+                
+                if (await showConfirm("Enable Manual Mode? This stops any running profile.")) {
+                    await fetch('/manual', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({enable: true, rpm: 0}) });
+                    document.getElementById('manualSlider').value = 0;
+                    document.getElementById('manualRpmVal').innerText = 0;
+                }
+            } else {
+                await fetch('/stop', { method: 'POST' });
+            }
+        }
+
+        function updateManualInput(val) {
+            document.getElementById('manualRpmVal').innerText = val;
+        }
+
+        async function sendManualRpm(val) {
+            if (!manualMode) return;
+            await fetch('/manual', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({rpm: parseInt(val)}) });
+        }
+        
+        function setManualPreset(val) {
+            document.getElementById('manualSlider').value = val;
+            updateManualInput(val);
+            sendManualRpm(val);
+        }
+
+        // Init
+        async function init() {
+            // console.log("Starting Init...");
+            await fetchProfiles();
+            await new Promise(r => setTimeout(r, 100)); // Small breathing room for server
+            await loadSettings();
+            connect(); // Connect WebSocket LAST to avoid contention
+            // console.log("Init Complete");
+        }
+        init();
+    </script>
+</body>
+</html>

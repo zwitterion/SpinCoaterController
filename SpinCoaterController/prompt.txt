@@ -1,0 +1,169 @@
+You are generating complete, production-quality firmware for an **Arduino UNO R4 WiFi-based** spin-coater device.
+Follow all specifications below exactly.
+Use clean modular architecture, clear naming, and non-blocking logic.
+
+**IMPORTANT OUTPUT INSTRUCTION:** Because this is a large project, do NOT attempt to output everything in one response.
+
+* **Phase 1:** Output the `main.ino`, all `.h` files, and the embedded Web UI string.
+* **Phase 2+:** Wait for me to say "Continue" before outputting the `.cpp` implementation files, 2 or 3 at a time.
+
+# ============================================================
+SYSTEM OVERVIEW
+
+The device controls a brushless motor via an ESC and measures RPM using a TCRT5000 reflective optical sensor.
+Users interact through a WiFi-hosted web interface.
+The system supports:
+
+* WiFi onboarding (AP mode → credential entry → connect to local WiFi)
+* Secure credential storage using the UNO R4's data flash/EEPROM
+* Creation, editing, storage, and execution of multi-step spin profiles
+* Real-time RPM measurement and optional closed-loop PID control
+* Safety monitoring and emergency stop
+* WebSocket telemetry for live RPM and status updates
+
+# ============================================================
+HARDWARE & LIBRARY CONSTRAINTS
+
+* Board: Arduino UNO R4 WiFi (Renesas RA4M1 + ESP32-S3)
+* WiFi: Must use the `WiFiS3` library.
+* JSON: Must use `ArduinoJson` library.
+* WebSockets: Write a simple implementation for this project. Do not use third party modules for this. Ensure is compatible with WiFiS3 and the Arduino UNO R4 stack.
+* ESC: Spektrum Avian 30A (SPMXAE1030)
+* Brushless motor: DYS D2830 850KV
+* RPM sensor: TCRT5000 reflective IR sensor
+* ESC signal pin: D9 (Servo-style PWM)
+* RPM sensor pin: D2 (Interrupt, attachInterrupt)
+* Power: Common ground between ESC and Arduino.
+
+OTHER CONSTRAINTS:
+* The strlcpy function is a non-standard BSD extension and is not available in the standard library for the Arduino UNO R4 toolchain. You should use strncpy instead, ensuring you manually null-terminate the string to be safe.
+* If WiFi.localIP() returns a "0.0.0.0" IP address, wait few milliseconds and try again until it is non zero.
+* Use a Magic Number (e.g., 0xA1B2C3DA) and a custom CRC32 calculation to verify EEPROM data integrity on load. If corrupt, load defaults.
+* Ensure the padding bytes and unused array elements of datastructures use to access EEPROM are zeroed and valid.
+
+# ============================================================
+FIRMWARE ARCHITECTURE
+
+Implement the following modules as separate .h/.cpp files:
+
+1. **WiFiManager**
+* On boot, attempt to connect to stored WiFi credentials.
+* If no credentials or repeated failures, start Access Point mode.
+* AP SSID: "SpinCoater-XXXX" (last 4 MAC bytes).
+* Provide a captive-portal-style page to enter SSID/password.
+* Store credentials in EEPROM, obfuscated (simple XOR mask is fine).
+* After storing credentials, reboot into Station mode.
+* While in AP mode, display the IP address in the Arduino UNO R4 LED Matrix.
+* Display connection errors messages on the LED Matrix
+
+
+2. **WebServer**
+* Serve a responsive HTML/JS UI (store HTML/JS/CSS in `PROGMEM`).
+* REST endpoints (JSON format):
+* GET/POST/PUT/DELETE `/profiles`
+* POST `/run/{id}`, `/stop`, `/pause`
+* GET `/status`
+* GET/POST `/settings`
+* WebSocket endpoint for: Live RPM, current step, motor state, errors.
+
+
+3. **EEPROMStorage**
+* Store: WiFi credentials, system settings (including PID Kp/Ki/Kd values), ESC calibration data, and spin profiles.
+* Use `ArduinoJson` for serialization before saving to EEPROM.
+* Include CRC for corruption detection.
+
+
+4. **ProfileManager**
+* A profile contains: Name (max 20 chars), up to 20 steps.
+* Each step contains: `startRPM`, `targetRPM`, `rampDurationMs`, `holdDurationMs`, `rampType` (linear, exponential, s-curve).
+* Provide functions to: Create, edit, delete, list profiles; Load/save to EEPROM.
+
+
+5. **RPMReader**
+* Use hardware interrupt on D2 (`RISING` or `FALLING`).
+* Variables modified in ISR must be marked `volatile`.
+* Include software debouncing to reject noise/spurious pulses.
+* Compute RPM = `60e6 / periodMicros`.
+* Provide `getRPM()` function. Handle timeouts (no pulses for X ms → RPM = 0).
+
+
+6. **ESCController**
+* Use standard `Servo` library.
+* Map RPM targets to throttle values (1000us - 2000us).
+* Provide: `setThrottleMicroseconds()`, `setTargetRPM()`, `stopMotor()`.
+* Include a PID loop for closed-loop RPM control. Allow PID constants to be updated at runtime.
+
+
+7. **ExecutionEngine (State Machine)**
+* States: `IDLE`, `RUNNING`, `PAUSED`, `STOPPING`, `ERROR`, `EMERGENCY_STOP`.
+* Behavior: Execute steps sequentially, compute ramp trajectory in real-time, use RPMReader + ESCController for closed-loop control.
+* On STOP or ERROR, cut throttle immediately (1000us).
+
+
+8. **SafetyManager**
+* Detect: RPM overshoot (exceeding target by &gt;15%), No RPM feedback (throttle applied but RPM is 0), ESC signal loss.
+* Provide `emergencyStop()` function. Log errors.
+
+9. **convert.py**
+Python module helper to compress index.html using Gzip and generate a C++ header file (web_assets.h) containing the hex array.
+Features: Use argparse to support a --mode dev (minified string) and --mode prod (gzipped hex) switch.
+
+# ============================================================
+WEB UI REQUIREMENTS
+
+Implement a single-page HTML/JS interface served from the Arduino (minify where possible):
+
+* **Dashboard:** Start/Stop/Pause buttons, live RPM gauge, current step + time remaining.
+* **Profiles:** List profiles, Create/edit/delete, Step editor with ramp/hold parameters.
+* **Settings:** WiFi settings, ESC calibration, PID tuning values, System info.
+Use index.html to store the HTML, CSS and JavaScript.
+The module convert.py will update web_assets.h with the minify and GZIP compressed versions of the HTML, CSS and JavaScript code. Use the minify_html python module.
+
+Use "cards" to group together the following UI functions: 
+        top card will have the RMP gauge, rmp value, name of profile running, step number and time left.  
+        Second card will be the profile editor, organize steps into a table, the current selected profile should be always visible. 
+        The third car will have PID settings
+        The fouth card will have WiFi settings
+        The last card will have options to reset to factory settings and reboot. 
+        Make sure cards have a clean border and all cards are stack from top to bottom in a single column. 
+        Use a dark theme with neon like colors, make it look clean, advanced and modern.
+
+Use custom web socket module for live telemetry. Ensure the UI handles disconnects gracefully.
+Create a simple websocket implementation from scratch. Do not use existing libraries.
+
+# ============================================================
+CODING REQUIREMENTS
+
+* Use non-blocking code (no `delay()`, use `millis()` state tracking).
+* Organize code into classes with clear responsibilities.
+* Include comments explaining all major functions and complex math (like S-curve generation).
+* Provide a `main.ino` that initializes all modules and runs the main loop.
+* Ensure safe startup: Motor throttle must be explicitly set to 1000us (Off) in `setup()`.
+
+---
+
+
+=============================
+After creating the first version you can use these prompts in sequence to refine the UI.
+=============================
+
+Add an option to the UI to reboot the Arduino
+Add an option to the UI to reset the system to factoy settings (Erase everything from EEPROM) and then reboot.
+For confirmation dialogs use a custom popup window that mathces the style of the UI, not the browser's confirm dialog. 
+Implement PID a Tuning algorithm for a brushless motor from scratch. Add an option to the PID Card to start/stop the tuning process. Once tuning completes, save the settings and refresh the UI.
+    - Use a low pass filter to filter noise from the sensor - add a filter paramter to the UI to control the filter with a 0 to 1 float.
+    - Use Integral windup with a parameter, set in the UI, range to control when the Ki componet will be active - Only integrate when output is not saturated
+
+Display server errors/alerts on the dashboard. For example, if the system detects the motor is not spinning.
+
+Add an option to the UI to display a help popup window that explains:
+   The Low Pass Filter (LPF) implementation: What it is and how to set the filter alpha parameter value.
+   The Integral Windup protection: What it is and how to set the windup range parameter value.
+   Kp, Ki, Kd: What they are and how to set them if Autotune does not work.
+   A vertical scroll bar could be added to scroll through.
+
+Add a graph to the UI to visualize the RPM vs Target over time. Make the card collapsable.
+Add a paramter to the systems options dialog to set the absolute maximum motor speed. Then modify the firmware to ensure that speed is never exceeded.
+Add a graphical analog gauge to the Dashboard to display the current RPM. The max. value of the gauge will be the maxium motor speed. Display the digital value in the center of the dashboard. The analog should arc around the number.
+Add a "Manual Mode" to control the RPM directly with a slider.
+Add support for ESC calibration. Make the process guided so the user knows when to turn power off for example. The ESC is SPMXAE1030.
