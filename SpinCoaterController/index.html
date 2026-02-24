@@ -138,6 +138,7 @@
         <!-- Card 2: Profile Editor -->
         <div class="card">
             <h2>Profile Editor</h2>
+            <h2>Profile Editor <button onclick="showProfileHelp()" style="float:right; padding: 2px 8px; font-size: 0.7em; background: transparent; border: 1px solid var(--neon-blue); color: var(--neon-blue); cursor: pointer;">?</button></h2>
             <div class="row">
                 <select id="profileSelect" class="col" onchange="loadProfile()"></select>
             </div>
@@ -204,6 +205,32 @@
             <div class="row">
                 <button onclick="reboot()" class="btn-warn" style="flex:1">Reboot</button>
                 <button onclick="factoryReset()" class="btn-danger" style="flex:1">Factory Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Help Modal -->
+    <div id="profileHelpModal" class="modal" hidden>
+        <div class="modal-content help-content">
+            <h3 style="color: var(--neon-blue); margin-top: 0;">Profile Editor Guide</h3>
+            <div class="help-text">
+                <p>Create multi-step spin recipes.</p>
+                <h4>Step Parameters</h4>
+                <ul>
+                    <li><strong>RPM:</strong> Target speed for this step.</li>
+                    <li><strong>Ramp (ms):</strong> Time taken to reach the target RPM from the previous speed.</li>
+                    <li><strong>Hold (ms):</strong> Time to maintain the target RPM before moving to the next step.</li>
+                </ul>
+                
+                <h4>Ramp Types</h4>
+                <ul>
+                    <li><strong>Linear (Lin):</strong> Constant acceleration. Standard for most uses.</li>
+                    <li><strong>Exponential (Exp):</strong> Starts slow, accelerates fast. Good for delicate films.</li>
+                    <li><strong>S-Curve (S-C):</strong> Smooth start and stop. Reduces mechanical jerk. Best for high speeds.</li>
+                </ul>
+            </div>
+            <div class="modal-btns">
+                <button onclick="closeProfileHelp()" class="btn-primary">Close</button>
             </div>
         </div>
     </div>
@@ -685,6 +712,9 @@
 
         function showCalHelp() { document.getElementById('calHelpModal').hidden = false; }
         function closeCalHelp() { document.getElementById('calHelpModal').hidden = true; }
+
+        function showProfileHelp() { document.getElementById('profileHelpModal').hidden = false; }
+        function closeProfileHelp() { document.getElementById('profileHelpModal').hidden = true; }
 
         function startCal() {
             document.getElementById('calModal').hidden = false;
