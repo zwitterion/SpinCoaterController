@@ -44,7 +44,7 @@ A complete, production-quality firmware for a DIY Spin Coater based on the **Ard
 | :--- | :--- | :--- | :--- |
 | **ESC** | Signal (PWM) | **D9** | Servo-style PWM |
 | **ESC** | Ground | **GND** | **Common Ground required** |
-| **Sensor** | Digital Out | **D2** | Interrupt Pin |
+| **Sensor** | Digital Out | **D8** | Interrupt Pin |
 | **Sensor** | VCC | **5V** | Or 3.3V depending on module |
 | **Sensor** | GND | **GND** | |
 
@@ -56,7 +56,7 @@ A complete, production-quality firmware for a DIY Spin Coater based on the **Ard
     *   `WiFiS3`
     *   `ArduinoJson`
     *   `Arduino_LED_Matrix`
-    *   `Servo`
+    *   `Servo Version >= 1.3.0 **IMPORTANT**` 
 2.  **Web Assets:**
     *   The HTML/JS is compressed into `web_assets.h`.
     *   To modify the UI, edit `index.html` and run: `python convert.py --mode prod index.html web_assets.h`.

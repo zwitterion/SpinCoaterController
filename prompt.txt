@@ -17,7 +17,7 @@ The system supports:
 * WiFi onboarding (AP mode → credential entry → connect to local WiFi)
 * Secure credential storage using the UNO R4's data flash/EEPROM
 * Creation, editing, storage, and execution of multi-step spin profiles
-* Real-time RPM measurement and optional closed-loop PID control
+* Real-time RPM measurement and optional closed-loop PID control or open loop control based on motor KV and volatge.
 * Safety monitoring and emergency stop
 * WebSocket telemetry for live RPM and status updates
 
@@ -115,7 +115,7 @@ Implement a single-page HTML/JS interface served from the Arduino (minify where 
 
 * **Dashboard:** Start/Stop/Pause buttons, live RPM gauge, current step + time remaining.
 * **Profiles:** List profiles, Create/edit/delete, Step editor with ramp/hold parameters.
-* **Settings:** WiFi settings, ESC calibration, PID tuning values, System info.
+* **Settings:** WiFi settings, ESC calibration, PID tuning values for close control, KV and voltage for open-loop control, System info.
 Use index.html to store the HTML, CSS and JavaScript.
 The module convert.py will update web_assets.h with the minify and GZIP compressed versions of the HTML, CSS and JavaScript code. Use the minify_html python module.
 
@@ -124,6 +124,7 @@ Use "cards" to group together the following UI functions:
         Second card will be the profile editor, organize steps into a table, the current selected profile should be always visible. 
         The third car will have PID settings
         The fouth card will have WiFi settings
+        the fifth card will have System settings: Absolute Max RPM, Control Type (open-loop, closed loop), motor KV and voltage 
         The last card will have options to reset to factory settings and reboot. 
         Make sure cards have a clean border and all cards are stack from top to bottom in a single column. 
         Use a dark theme with neon like colors, make it look clean, advanced and modern.
@@ -167,3 +168,4 @@ Add a paramter to the systems options dialog to set the absolute maximum motor s
 Add a graphical analog gauge to the Dashboard to display the current RPM. The max. value of the gauge will be the maxium motor speed. Display the digital value in the center of the dashboard. The analog should arc around the number.
 Add a "Manual Mode" to control the RPM directly with a slider.
 Add support for ESC calibration. Make the process guided so the user knows when to turn power off for example. The ESC is SPMXAE1030.
+Use a 3-sample median filter in the RPM Reader to smooth values

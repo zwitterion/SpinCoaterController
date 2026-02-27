@@ -1,8 +1,10 @@
 #include "WebServer.h"
 #include "ESCController.h"
+#include <EEPROM.h>
 
 // External reference to allow runtime PID updates
 extern ESCController escController;
+extern bool g_rpmCheckEnabled;
 
 WebServer::WebServer(int port, ProfileManager& pm, ExecutionEngine& engine, EEPROMStorage& storage, WiFiManager& wifi)
     : _server(port), _pm(pm), _engine(engine), _storage(storage), _wifi(wifi), _wsConnected(false) {
@@ -257,6 +259,10 @@ void WebServer::handleApiRequest(WiFiClient& client, String method, String uri, 
             doc["pid"]["windup"] = s.windupRange;
             doc["sys"]["maxRPM"] = s.maxRPM;
             doc["sys"]["calibrated"] = s.escCalibrated;
+            doc["sys"]["controlMode"] = (int)s.controlMode;
+            doc["sys"]["rpmCheck"] = g_rpmCheckEnabled;
+            doc["sys"]["motorKV"] = s.motorKV;
+            doc["sys"]["batteryVoltage"] = s.batteryVoltage;
             doc["wifi"]["ssid"] = s.wifi.ssid;
             // Don't send password back
             
@@ -285,6 +291,14 @@ void WebServer::handleApiRequest(WiFiClient& client, String method, String uri, 
                     JsonObject sys = doc["sys"];
                     if (sys.containsKey("maxRPM")) s.maxRPM = sys["maxRPM"];
                     if (sys.containsKey("calibrated")) s.escCalibrated = sys["calibrated"];
+                    if (sys.containsKey("controlMode")) s.controlMode = (ControlMode)sys["controlMode"].as<int>();
+                    if (sys.containsKey("motorKV")) s.motorKV = sys["motorKV"].as<float>();
+                    if (sys.containsKey("batteryVoltage")) s.batteryVoltage = sys["batteryVoltage"].as<float>();
+                    
+                    if (sys.containsKey("rpmCheck")) {
+                        g_rpmCheckEnabled = sys["rpmCheck"];
+                        EEPROM.put(510, g_rpmCheckEnabled);
+                    }
                 }
 
                 if (doc.containsKey("wifi")) {
@@ -300,6 +314,16 @@ void WebServer::handleApiRequest(WiFiClient& client, String method, String uri, 
                 }
                 
                 _storage.saveSettings(s);
+                // Apply runtime changes to ESC controller
+                
+                if (!g_rpmCheckEnabled) {
+                    escController.setControlMode(CONTROL_KV);
+                } else {
+                    escController.setControlMode((int)s.controlMode);
+                }
+                
+                escController.setMotorKV(s.motorKV);
+                escController.setBatteryVoltage(s.batteryVoltage);
                 client.println("HTTP/1.1 200 OK\r\n\r\n");
             }
         }

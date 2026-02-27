@@ -104,7 +104,12 @@ void ExecutionEngine::runProfile(uint8_t profileId) {
         _state = STATE_RUNNING;
         _currentStepIndex = 0;
         _stepStartTime = millis();
-        _currentTargetRPM = 0; 
+        // Initialize first step's startRPM to the current measured RPM so ramps chain correctly
+        float currentRPM = _rpmReader.getRPM();
+        if (_currentProfile.stepCount > 0) {
+            _currentProfile.steps[0].startRPM = (int)currentRPM;
+        }
+        _currentTargetRPM = 0;
         _safetyManager.clearError();
         Serial.print("Engine: Started Profile "); Serial.println(_currentProfile.name);
     } else {
@@ -157,11 +162,15 @@ void ExecutionEngine::setCalibrationThrottle(int us) {
 }
 
 void ExecutionEngine::advanceStep() {
+    // Capture previous target so next step can start from it
+    int prevTarget = _currentProfile.steps[_currentStepIndex].targetRPM;
     _currentStepIndex++;
     if (_currentStepIndex >= _currentProfile.stepCount) {
         // Profile Complete
         stop();
     } else {
+        // Ensure the next step's startRPM equals the previous step's targetRPM
+        _currentProfile.steps[_currentStepIndex].startRPM = prevTarget;
         _stepStartTime = millis();
     }
 }
@@ -191,7 +200,7 @@ TelemetryData ExecutionEngine::getTelemetry() {
     data.state = _state;
     data.currentRPM = _rpmReader.getRPM();
     data.targetRPM = _currentTargetRPM;
-    data.throttlePercent = 0; // Placeholder
+    data.throttlePercent = _escController.getThrottlePercent();
     data.currentStepIndex = _currentStepIndex;
     
     if (_state == STATE_RUNNING) {

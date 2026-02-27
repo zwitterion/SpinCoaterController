@@ -3,11 +3,11 @@
 ESCController::ESCController(uint8_t pin) : _pin(pin), _targetRPM(0), 
     _kp(0), _ki(0), _kd(0), _integral(0), _prevError(0), _lastPIDTime(0),
     _minUs(1000), _maxUs(2000), _filterAlpha(1.0), _windupRange(500), _filteredRPM(0),
-    _tuneState(TUNE_IDLE), _lastThrottle(1000) {
+    _tuneState(TUNE_IDLE), _lastThrottle(1000), _controlMode(CONTROL_PID), _motorKV(850.0f), _batteryVoltage(11.1f) {
 }
 
 void ESCController::begin() {
-    _esc.attach(_pin);
+    _esc.attach(_pin, _minUs, _maxUs);
     stopMotor(); // Send min throttle to arm ESC
 }
 
@@ -27,12 +27,28 @@ void ESCController::setTargetRPM(float rpm) {
         stopMotor();
     } else {
         // If starting from idle, reset PID timers to prevent integral windup from stale time
-        if (_targetRPM <= 0) {
-            _lastPIDTime = millis();
-            _integral = 0;
-            _prevError = 0;
+        if (_controlMode == CONTROL_KV) {
+            _targetRPM = rpm;
+            // Open-loop: compute throttle percent from KV * Vbat
+            float denom = _motorKV * _batteryVoltage;
+            float pct = 0.0f;
+            if (denom > 0.0f) {
+                pct = rpm / denom;
+            }
+            pct = constrain(pct, 0.0f, 1.0f);
+            int us = _minUs + (int)(pct * (_maxUs - _minUs));
+            // Serial.print("KV Mode: Target RPM = "); Serial.print(rpm);
+            // Serial.print(", Throttle % = "); Serial.print(pct * 100.0f);
+            // Serial.print(", Throttle us = "); Serial.println(us);
+            setThrottleMicroseconds(us);
+        } else {
+            if (_targetRPM <= 0) {
+                _lastPIDTime = millis();
+                _integral = 0;
+                _prevError = 0;
+            }
+            _targetRPM = rpm;
         }
-        _targetRPM = rpm;
     }
 }
 
@@ -65,6 +81,9 @@ void ESCController::setWindupRange(float range) {
 void ESCController::update(float currentRPM) {
     // If motor is supposed to be off, ensure it stays off
     if (_targetRPM <= 0) return;
+
+    // If using KV open-loop mode, there's no PID update required here
+    if (_controlMode == CONTROL_KV) return;
 
     unsigned long now = millis();
     unsigned long dtMs = now - _lastPIDTime;
@@ -123,6 +142,27 @@ void ESCController::update(float currentRPM) {
     throttle = _minUs + (int)output;
     
     setThrottleMicroseconds(throttle);
+}
+
+void ESCController::setControlMode(int mode) {
+    if (mode == CONTROL_KV) _controlMode = CONTROL_KV;
+    else _controlMode = CONTROL_PID;
+}
+
+void ESCController::setMotorKV(float kv) {
+    if (kv > 0.0f) _motorKV = kv;
+}
+
+void ESCController::setBatteryVoltage(float voltage) {
+    if (voltage > 0.0f) _batteryVoltage = voltage;
+}
+
+float ESCController::getThrottlePercent() {
+    float range = (float)(_maxUs - _minUs);
+    if (range <= 0) return 0.0f;
+    float pct = ((float)(_lastThrottle - _minUs)) / range;
+    pct = constrain(pct, 0.0f, 1.0f);
+    return pct * 100.0f; // percent 0..100
 }
 
 void ESCController::startTuning() {

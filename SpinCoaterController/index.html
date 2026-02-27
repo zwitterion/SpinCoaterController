@@ -137,7 +137,6 @@
 
         <!-- Card 2: Profile Editor -->
         <div class="card">
-            <h2>Profile Editor</h2>
             <h2>Profile Editor <button onclick="showProfileHelp()" style="float:right; padding: 2px 8px; font-size: 0.7em; background: transparent; border: 1px solid var(--neon-blue); color: var(--neon-blue); cursor: pointer;">?</button></h2>
             <div class="row">
                 <select id="profileSelect" class="col" onchange="loadProfile()"></select>
@@ -200,6 +199,25 @@
         <div class="card">
             <h2>System Options <button onclick="showCalHelp()" style="float:right; padding: 2px 8px; font-size: 0.7em; background: transparent; border: 1px solid var(--neon-blue); color: var(--neon-blue); cursor: pointer;">?</button></h2>
             <label>Absolute Max RPM</label><input type="number" id="maxRPM">
+            <div class="row">
+                <div class="col"><label>Control Mode</label>
+                    <select id="controlMode">
+                        <option value="0">PID (Closed-loop)</option>
+                        <option value="1">KV (Open-loop)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row" style="margin-top: 10px; margin-bottom: 5px;">
+                <div class="col" style="display: flex; align-items: center; justify-content: space-between; background: #2a2a2a; padding: 8px; border-radius: 4px; border: 1px solid #444;">
+                    <label style="margin:0; color: #fff; cursor: pointer;" for="rpmCheck">RPM Safety & Feedback</label>
+                    <input type="checkbox" id="rpmCheck" style="width: auto; margin: 0; transform: scale(1.5);">
+                </div>
+            </div>
+            <div class="row">
+                <div class="col"><label>Motor KV (RPM/V)</label><input type="number" id="motorKV" step="1" value="850"></div>
+                <div class="col"><label>Battery Voltage (V)</label><input type="number" id="batteryVoltage" step="0.1" value="11.1"></div>
+            
+            </div>
             <button onclick="saveSystem()" class="btn-primary" style="width: 100%; margin-bottom: 10px;">Save System Settings</button>
             <button onclick="startCal()" class="btn-warn" style="width: 100%; margin-bottom: 10px;">Calibrate ESC</button>
             <div class="row">
@@ -621,6 +639,10 @@
                 document.getElementById('alpha').value = data.pid.alpha || 1.0;
                 document.getElementById('windup').value = data.pid.windup || 500;
                 document.getElementById('maxRPM').value = data.sys.maxRPM || 10000;
+                document.getElementById('controlMode').value = (data.sys.controlMode !== undefined) ? data.sys.controlMode : 0;
+                document.getElementById('rpmCheck').checked = (data.sys.rpmCheck !== undefined) ? data.sys.rpmCheck : true;
+                document.getElementById('motorKV').value = (data.sys.motorKV !== undefined) ? data.sys.motorKV : 850;
+                document.getElementById('batteryVoltage').value = (data.sys.batteryVoltage !== undefined) ? data.sys.batteryVoltage : 11.1;
                 isCalibrated = data.sys.calibrated || false;
                 document.getElementById('ssid').value = data.wifi.ssid;
             } catch (e) { /* console.error("Fetch Settings Error:", e); */ }
@@ -643,7 +665,11 @@
         async function saveSystem() {
             const data = {
                 sys: {
-                    maxRPM: parseInt(document.getElementById('maxRPM').value)
+                    maxRPM: parseInt(document.getElementById('maxRPM').value),
+                    controlMode: parseInt(document.getElementById('controlMode').value),
+                    rpmCheck: document.getElementById('rpmCheck').checked,
+                    motorKV: parseFloat(document.getElementById('motorKV').value),
+                    batteryVoltage: parseFloat(document.getElementById('batteryVoltage').value)
                 }
             };
             if (await showConfirm("Save System Settings?")) {

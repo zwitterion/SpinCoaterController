@@ -25,6 +25,11 @@ enum RampType {
     RAMP_S_CURVE = 2
 };
 
+enum ControlMode {
+    CONTROL_PID = 0,
+    CONTROL_KV = 1
+};
+
 // ============================================================
 // DATA STRUCTURES
 // ============================================================
@@ -66,6 +71,9 @@ struct SystemSettings {
     float filterAlpha; // 0.0 to 1.0 (1.0 = no filter)
     float windupRange; // RPM error range for integration
     bool escCalibrated;
+    ControlMode controlMode;
+    float motorKV; // RPM per volt
+    float batteryVoltage; // Battery nominal voltage
 };
 
 // ============================================================

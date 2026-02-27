@@ -10,13 +10,17 @@ void _rpmReaderISR() {
     }
 }
 
-RPMReader::RPMReader(uint8_t pin) : _pin(pin), _lastPulseTime(0), 
+RPMReader::RPMReader(uint8_t pin, uint8_t pinLED) : _pin(pin), _pinLED(pinLED), _lastPulseTime(0), 
     _pulseInterval(0), _newData(false), _lastRPMCalculationTime(0), _currentRPM(0) {
     _rpmReaderInstance = this;
+    _intervalBuf[0] = _intervalBuf[1] = _intervalBuf[2] = 0;
+    _intervalIdx = 0;
 }
 
 void RPMReader::begin() {
     pinMode(_pin, INPUT_PULLUP); // TCRT5000 usually requires pullup if open-collector
+    pinMode(_pinLED, OUTPUT);
+    digitalWrite(_pinLED, HIGH); // Turn on LED for RPM sensor
     attachInterrupt(digitalPinToInterrupt(_pin), _rpmReaderISR, FALLING);
 }
 
@@ -57,6 +61,26 @@ float RPMReader::getRPM() {
             // RPM = 60 seconds / (interval in seconds)
             // RPM = 60,000,000 us / interval_us
             _currentRPM = 60000000.0f / interval;
+
+            // Push into small buffer for median filtering to reject single-sample spikes
+            // _intervalBuf[_intervalIdx % 3] = interval;
+            // _intervalIdx = (_intervalIdx + 1) % 3;
+
+            // // Compute median of three values
+            // unsigned long a = _intervalBuf[0];
+            // unsigned long b = _intervalBuf[1];
+            // unsigned long c = _intervalBuf[2];
+            // unsigned long median;
+
+            // // simple median of three
+            // if ((a <= b && b <= c) || (c <= b && b <= a)) median = b;
+            // else if ((b <= a && a <= c) || (c <= a && a <= b)) median = a;
+            // else median = c;
+
+            // if (median > 0) {
+            //     _currentRPM = 60000000.0f / (float)median;
+            // }
+
         }
     }
     

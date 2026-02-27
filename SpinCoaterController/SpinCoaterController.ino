@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <EEPROM.h>
 #include "types.h"
 #include "EEPROMStorage.h"
 #include "WiFiManager.h"
@@ -13,7 +14,13 @@
 // PIN DEFINITIONS
 // ============================================================
 #define PIN_ESC 9
-#define PIN_RPM 2
+#define PIN_RPM 8
+#define PIN_RPM_LED 6  // LED, always on, light for the RPM sesnor.
+
+// ============================================================
+// GLOBAL VARIABLES
+// ============================================================
+bool g_rpmCheckEnabled = true; // Global flag for RPM safety checks
 
 // ============================================================
 // GLOBAL OBJECTS
@@ -22,7 +29,7 @@
 EEPROMStorage storage;
 WiFiManager wifiManager(storage);
 ProfileManager profileManager(storage);
-RPMReader rpmReader(PIN_RPM);
+RPMReader rpmReader(PIN_RPM, PIN_RPM_LED);
 ESCController escController(PIN_ESC);
 SafetyManager safetyManager(escController);
 ExecutionEngine engine(rpmReader, escController, safetyManager, profileManager, storage);
@@ -41,6 +48,10 @@ void setup() {
     // 1. Initialize Storage
     storage.begin();
     
+    // Load RPM Check setting (stored at 510, just before profiles)
+    EEPROM.get(510, g_rpmCheckEnabled);
+    if (g_rpmCheckEnabled != 0 && g_rpmCheckEnabled != 1) g_rpmCheckEnabled = true; // Sanity check
+
     // 2. Initialize Hardware
     escController.begin(); // Ensures motor is stopped (1000us)
     rpmReader.begin();
@@ -53,6 +64,16 @@ void setup() {
     escController.setCalibration(settings.escMinMicros, settings.escMaxMicros);
     escController.setFilterAlpha(settings.filterAlpha);
     escController.setWindupRange(settings.windupRange);
+    
+    // If checks are disabled, force KV mode, otherwise use stored setting
+    if (!g_rpmCheckEnabled) {
+        escController.setControlMode(CONTROL_KV);
+    } else {
+        escController.setControlMode((int)settings.controlMode);
+    }
+    
+    escController.setMotorKV(settings.motorKV);
+    escController.setBatteryVoltage(settings.batteryVoltage);
     safetyManager.setMaxRPM(settings.maxRPM);
     
     // 4. Initialize Logic

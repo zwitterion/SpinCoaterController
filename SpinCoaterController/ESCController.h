@@ -26,6 +26,12 @@ public:
     void setFilterAlpha(float alpha);
     void setWindupRange(float range);
     
+    // Control mode: PID (closed-loop) or KV (open-loop using motor KV)
+    void setControlMode(int mode);
+    void setMotorKV(float kv);
+    void setBatteryVoltage(float voltage);
+    float getThrottlePercent();
+    
     // Tuning
     void startTuning();
     bool updateTuning(float currentRPM); // Returns true when complete
@@ -47,6 +53,11 @@ private:
     float _filterAlpha;
     float _windupRange;
     float _filteredRPM;
+    
+    // Control mode and motor params for open-loop KV mapping
+    ControlMode _controlMode;
+    float _motorKV;
+    float _batteryVoltage;
     
     // Tuning State
     enum TuningState { TUNE_IDLE, TUNE_RAMP, TUNE_STABILIZE, TUNE_RELAY, TUNE_CALC };

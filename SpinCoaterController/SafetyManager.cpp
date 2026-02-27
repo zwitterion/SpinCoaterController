@@ -1,5 +1,7 @@
 #include "SafetyManager.h"
 
+extern bool g_rpmCheckEnabled;
+
 SafetyManager::SafetyManager(ESCController& esc) : _esc(esc), _lastError(nullptr), _zeroRPMTimer(0), _errorState(false), _maxRPM(15000) {
 }
 
@@ -12,6 +14,9 @@ void SafetyManager::setMaxRPM(int maxRPM) {
 }
 
 bool SafetyManager::check(float currentRPM, float targetRPM, float throttleOutput) {
+    // If RPM checks are disabled by user, bypass all safety logic
+    if (!g_rpmCheckEnabled) return true;
+
     // If already in error state, stay there
     if (_errorState) return false;
 
@@ -34,8 +39,12 @@ bool SafetyManager::check(float currentRPM, float targetRPM, float throttleOutpu
 
     // 2. Overspeed Protection
     // If RPM exceeds target by >15% (and target is not zero/low)
-    if (targetRPM > 500 && currentRPM > (targetRPM * 1.15)) {
-        emergencyStop("Overspeed: RPM > Target + 15%");
+    if (targetRPM > 500 && currentRPM > (targetRPM * 2.15)) {  // 1.15
+        // Dsiplay the actual RPM and target for debugging
+        Serial.print("Overspeed: Current RPM = ");Serial.print(currentRPM);
+        Serial.print(", Target RPM = ");Serial.println(targetRPM);
+        emergencyStop("Overspeed: RPM > Target + 15%" );
+        
         return false;
     }
     

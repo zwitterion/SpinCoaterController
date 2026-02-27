@@ -37,8 +37,14 @@ void EEPROMStorage::wipe() {
     defaults.filterAlpha = 1.0f; // Default no filtering
     defaults.windupRange = 500.0f; // Default 500 RPM range
     defaults.escCalibrated = false;
+    defaults.controlMode = CONTROL_PID;
+    defaults.motorKV = 850.0f;
+    defaults.batteryVoltage = 11.1f;
 
     saveSettings(defaults);
+    
+    // Reset RPM Check to default (ON)
+    EEPROM.put(510, true);
     
     // Clear profiles
     for (int i = 0; i < MAX_PROFILES; i++) {
