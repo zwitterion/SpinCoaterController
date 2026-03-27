@@ -58,9 +58,18 @@ float RPMReader::getRPM() {
         interrupts();
         
         if (interval > 0) {
-            // RPM = 60 seconds / (interval in seconds)
-            // RPM = 60,000,000 us / interval_us
-            _currentRPM = 60000000.0f / interval;
+            float instantRPM = 60000000.0f / (float)interval;
+
+            // Exponential Moving Average (EMA) for noise reduction.
+            // Result = (NewValue * Alpha) + (PreviousValue * (1 - Alpha))
+            // Alpha = 0.7 is responsive enough for PID but smooths out sensor jitter.
+            const float alpha = 0.7f;
+            
+            if (_currentRPM == 0) {
+                _currentRPM = instantRPM; // Fast start: skip filtering for the very first pulse
+            } else {
+                _currentRPM = (instantRPM * alpha) + (_currentRPM * (1.0f - alpha));
+            }
 
             // Push into small buffer for median filtering to reject single-sample spikes
             // _intervalBuf[_intervalIdx % 3] = interval;

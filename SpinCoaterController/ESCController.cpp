@@ -94,15 +94,8 @@ void ESCController::update(float currentRPM) {
     float dt = dtMs / 1000.0f;
     _lastPIDTime = now;
 
-    // Low Pass Filter
-    _filteredRPM = (_filteredRPM * (1.0f - _filterAlpha)) + (currentRPM * _filterAlpha);
-
-    // Debug: Print for Serial Plotter
-    // Format: "Label1:Value1,Label2:Value2"
-    // Serial.print("Raw:"); Serial.print(currentRPM);
-    // Serial.print(",Filtered:"); Serial.println(_filteredRPM);
-
-    float error = _targetRPM - _filteredRPM;
+    // currentRPM is now pre-filtered by the RPMReader EMA algorithm
+    float error = _targetRPM - currentRPM;
     
     // Integral calculation happens later to check saturation
     
