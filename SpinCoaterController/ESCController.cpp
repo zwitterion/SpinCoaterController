@@ -164,10 +164,20 @@ float ESCController::getThrottlePercent() {
 void ESCController::startTuning() {
     _tuneState = TUNE_RAMP;
     _tuneTimer = millis();
-    _tuneBaseThrottle = 1300; // Approx 30% throttle for tuning baseline
-    _tuneTargetRPM = 0;
+    
+    // Target 3000 RPM for the tune. Use mapping if available, else a safe default.
+    _tuneTargetRPM = 3000.0f;
+    if (_mapSlope > 0.001f) {
+        _tuneBaseThrottle = _mapStartPWM + (int)(_tuneTargetRPM / _mapSlope);
+    } else {
+        _tuneBaseThrottle = 1600; // Generic safe forward throttle
+    }
+
     _tuneCycles = 0;
     _tunePeriodSum = 0;
+    _tuneAmplitudeSum = 0;
+    _tuneMaxRPM = 0;
+    _tuneMinRPM = 100000;
     setThrottleMicroseconds(_tuneBaseThrottle);
 }
 
@@ -197,36 +207,43 @@ bool ESCController::updateTuning(float currentRPM) {
             break;
             
         case TUNE_RELAY: {
-            // Relay Step: +/- 50us
+            // Relay Step: +/- 40us for distinct oscillation
             int step = 50;
             int high = _tuneBaseThrottle + step;
             int low = _tuneBaseThrottle - step;
             
+            // Track Peaks
+            if (currentRPM > _tuneMaxRPM) _tuneMaxRPM = currentRPM;
+            if (currentRPM < _tuneMinRPM) _tuneMinRPM = currentRPM;
+
             if (currentRPM < _tuneTargetRPM) {
                 setThrottleMicroseconds(high);
-                // Check for crossing upwards
             } else {
                 setThrottleMicroseconds(low);
-                // Check for crossing downwards
             }
             
-            // Simple period detection: count time between rising crossings
-            // This is a simplified implementation. Real relay tuning detects peaks.
-            // Here we just toggle.
             static bool wasBelow = true;
             bool isBelow = (currentRPM < _tuneTargetRPM);
             
             if (wasBelow && !isBelow) { // Rising edge
                 unsigned long period = now - _tuneLastCrossTime;
                 _tuneLastCrossTime = now;
-                if (_tuneCycles > 0) { // Skip first partial cycle
+
+                if (_tuneCycles > 0) { 
                     _tunePeriodSum += period;
+                    // Amplitude a = (max - min) / 2
+                    float amplitude = (_tuneMaxRPM - _tuneMinRPM) / 2.0f;
+                    _tuneAmplitudeSum += amplitude;
                 }
+                
+                // Reset peaks for next cycle
+                _tuneMaxRPM = _tuneTargetRPM;
+                _tuneMinRPM = _tuneTargetRPM;
                 _tuneCycles++;
             }
             wasBelow = isBelow;
             
-            if (_tuneCycles >= 5) {
+            if (_tuneCycles >= 6) { // 5 full cycles
                 _tuneState = TUNE_CALC;
             }
             break;
@@ -238,22 +255,22 @@ bool ESCController::updateTuning(float currentRPM) {
 }
 
 PIDConstants ESCController::getTunedPID() {
-    // Ziegler-Nichols based on Relay
-    // Average Period Tu
-    float Tu = (_tunePeriodSum / 4.0f) / 1000.0f; // Seconds
-    
-    // Amplitude of input oscillation (d) = 50us / 1000us range = 0.05
-    // We approximate Ku based on system response. 
-    // For a real relay, we need output amplitude. 
-    // Let's assume a safe conservative tuning based on period.
-    
-    // Simplified heuristic for this specific motor type if pure math fails:
-    float Ku = 0.5f; // Conservative gain
+    // Ziegler-Nichols Relay Method
+    // d = relay step (50), a = amplitude of oscillation
+    float avgTu = (_tunePeriodSum / 5.0f) / 1000.0f; // Average period in seconds
+    float avgA = _tuneAmplitudeSum / 5.0f;          // Average RPM amplitude
+
+    if (avgA < 1.0f) avgA = 1.0f; // Prevent div by zero
+
+    // Ultimate Gain Ku = (4 * d) / (pi * a)
+    // We use the relay step (50us) as 'd'
+    float Ku = (4.0f * 50.0f) / (PI * avgA);
     
     PIDConstants pid;
-    pid.kp = 0.6f * Ku;
-    pid.ki = (2.0f * pid.kp) / Tu;
-    pid.kd = (pid.kp * Tu) / 8.0f;
+    // Standard Ziegler-Nichols PID tuning parameters
+    pid.kp = 0.60f * Ku;
+    pid.ki = 1.20f * Ku / avgTu;
+    pid.kd = 0.075f * Ku * avgTu;
     
     stopMotor();
     _tuneState = TUNE_IDLE;

@@ -10,7 +10,7 @@ The system is built using a **Modular Object-Oriented** approach. Each hardware 
 ### Hardware Abstraction Layer (HAL)
 *   **RPMReader:** Manages the TCRT5000 IR sensor. It uses hardware interrupts (Pin D8/D2) and software debouncing to calculate motor frequency. It includes a timeout mechanism to set RPM to zero when the motor stops.
 *   **R4ESC / ESCController:** Wraps the PWM generation for the Electronic Speed Controller. `ESCController` handles the logic of mapping target RPM to PWM pulse widths (1000us - 2000us) and implements the **PID Control Loop**.
-*   **WiFiManager:** Handles the dual-mode WiFi logic (Access Point for configuration, Station for operation). It interacts with the UNO R4 LED Matrix to provide visual status updates (IP addresses, icons).
+*   **WiFiManager:** Handles the dual-mode WiFi logic (Access Point for configuration, Station for operation). It interacts with the UNO R4 LED Matrix to provide visual status updates (IP addresses, icons). Supports **mDNS** for local hostname resolution (`spincoater.local`).
 
 ### Logic & Execution
 *   **ExecutionEngine:** The system's "brain." It contains the main state machine and handles the progression of multi-step profiles. It calculates ramp trajectories (Linear, Exponential, S-Curve) in real-time.

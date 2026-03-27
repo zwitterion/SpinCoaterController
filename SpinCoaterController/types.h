@@ -59,6 +59,7 @@ struct SpinProfile {
 struct WiFiCredentials {
     char ssid[33];
     char password[65];
+    char hostname[33];
     bool valid;
 };
 

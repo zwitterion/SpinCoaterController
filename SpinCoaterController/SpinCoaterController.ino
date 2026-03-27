@@ -9,6 +9,8 @@
 #include "SafetyManager.h"
 #include "ExecutionEngine.h"
 #include "WebServer.h"
+#include <WiFiUdp.h>
+#include <ArduinoMDNS.h>
 
 // ============================================================
 // PIN DEFINITIONS
@@ -33,6 +35,8 @@ RPMReader rpmReader(PIN_RPM, PIN_RPM_LED);
 ESCController escController(PIN_ESC);
 SafetyManager safetyManager(escController);
 ExecutionEngine engine(rpmReader, escController, safetyManager, profileManager, storage);
+WiFiUDP udp;
+MDNS mdns(udp);
 WebServer webServer(80, profileManager, engine, storage, wifiManager);
 
 // ============================================================
@@ -84,6 +88,10 @@ void setup() {
     // 5. Initialize Network
     wifiManager.begin();
     webServer.begin();
+
+    // Start Multicast DNS (mDNS) responder
+    // Allows access via http://<hostname>.local
+    mdns.begin(WiFi.localIP(), settings.wifi.hostname);
     
     Serial.println(F("System Ready."));
 }
@@ -99,6 +107,9 @@ void loop() {
     wifiManager.update();
     webServer.update();
     
+    // Keep mDNS active
+    mdns.run();
+
     // 3. Telemetry Broadcast (Throttle this to ~10Hz to save bandwidth)
     static unsigned long lastTelemetry = 0;
     if (millis() - lastTelemetry > 100) {

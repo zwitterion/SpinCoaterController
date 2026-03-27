@@ -141,25 +141,30 @@ String SimpleWebSocket::encodeBase64(const uint8_t* data, size_t length) {
 }
 
 String SimpleWebSocket::readFrame(WiFiClient& client) {
-    if (!client.available()) return "";
+    if (client.available() < 2) return "";
     
     uint8_t b1 = client.read();
+    uint8_t b2 = client.read();
+    
     // Opcode: b1 & 0x0F (1=text, 8=close, 9=ping, 10=pong)
     uint8_t opcode = b1 & 0x0F;
+    bool masked = b2 & 0x80;
+    uint64_t len = b2 & 0x7F;
     
     if (opcode == 0x8) { // Close
         client.stop();
         return "";
     }
-    
-    if (!client.available()) return "";
-    uint8_t b2 = client.read();
-    
-    bool masked = b2 & 0x80;
-    uint64_t len = b2 & 0x7F;
+
+    if (opcode == 0x9) { // Ping
+        // Respond with Pong (opcode 0xA)
+        client.write(0x8A);
+        client.write((uint8_t)0); 
+        return "";
+    }
     
     if (len == 126) {
-        if (client.available() < 2) return "";
+        while(client.available() < 2) { yield(); }
         len = (client.read() << 8) | client.read();
     } else if (len == 127) {
         return ""; // Not supporting huge frames
@@ -167,15 +172,17 @@ String SimpleWebSocket::readFrame(WiFiClient& client) {
     
     uint8_t mask[4];
     if (masked) {
-        if (client.available() < 4) return "";
+        while(client.available() < 4) { yield(); }
         for (int i=0; i<4; i++) mask[i] = client.read();
     }
+
+    if (opcode != 0x01) return ""; // Only return text payloads
     
     String payload = "";
     payload.reserve(len);
     
     for (uint64_t i=0; i<len; i++) {
-        while(!client.available()) delay(1);
+        while(!client.available()) yield();
         char c = client.read();
         if (masked) c ^= mask[i % 4];
         payload += c;

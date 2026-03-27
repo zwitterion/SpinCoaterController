@@ -19,10 +19,10 @@ void WebServer::update() {
     WiFiClient newClient = _server.available();
     if (newClient) {
         if (newClient.connected()) {
-            // Wait briefly for data to be available to avoid reading empty request
+            // Reduced wait to keep motor loop responsive
             unsigned long startWait = millis();
-            while (newClient.connected() && !newClient.available() && millis() - startWait < 500) {
-                delay(1);
+            while (newClient.connected() && !newClient.available() && millis() - startWait < 100) {
+                yield(); 
             }
 
             // Read Request Line
@@ -264,7 +264,12 @@ void WebServer::handleApiRequest(WiFiClient& client, String method, String uri, 
             doc["sys"]["mapSlope"] = s.mapSlope;
             doc["sys"]["mapIntercept"] = s.mapIntercept;
             doc["sys"]["mapStartPWM"] = s.mapStartPWM;
-            doc["wifi"]["ssid"] = s.wifi.ssid;
+            
+            // Ensure strings are treated as clean null-terminated pointers
+            s.wifi.ssid[32] = '\0';
+            s.wifi.hostname[32] = '\0';
+            doc["wifi"]["ssid"] = (const char*)s.wifi.ssid;
+            doc["wifi"]["hostname"] = (const char*)s.wifi.hostname;
             // Don't send password back
             
             sendJsonResponse(client, 200, doc);
@@ -303,10 +308,17 @@ void WebServer::handleApiRequest(WiFiClient& client, String method, String uri, 
                 if (doc.containsKey("wifi")) {
                     const char* ssid = doc["wifi"]["ssid"];
                     const char* pass = doc["wifi"]["pass"];
+                    const char* hostname = doc["wifi"]["hostname"];
                     if (ssid && strlen(ssid) > 0) {
-                        strncpy(s.wifi.ssid, ssid, 32);
+                        strncpy(s.wifi.ssid, ssid, 32); 
+                        s.wifi.ssid[32] = '\0';
                         if (pass && strlen(pass) > 0) {
                             strncpy(s.wifi.password, pass, 64);
+                            s.wifi.password[64] = '\0';
+                        }
+                        if (hostname && strlen(hostname) > 0) {
+                            strncpy(s.wifi.hostname, hostname, 32);
+                            s.wifi.hostname[32] = '\0';
                         }
                         s.wifi.valid = true;
                     }
@@ -407,17 +419,29 @@ void WebServer::handleApiRequest(WiFiClient& client, String method, String uri, 
 }
 
 void WebServer::sendJsonResponse(WiFiClient& client, int statusCode, const JsonDocument& doc) {
+    String response;
+    serializeJson(doc, response);
+
     client.print("HTTP/1.1 ");
     client.print(statusCode);
     client.println(" OK");
     client.println("Content-Type: application/json");
+    client.print("Content-Length: ");
+    client.println(response.length());
     client.println("Connection: close");
     client.println();
-    serializeJson(doc, client);
+    client.print(response);
+    client.flush();
 }
 
 void WebServer::broadcastTelemetry(const TelemetryData& data) {
-    if (!_wsConnected || !_wsClient.connected()) return;
+    if (!_wsConnected) return;
+
+    // Check actual socket status
+    if (!_wsClient.connected()) {
+        _wsConnected = false;
+        return;
+    }
     
     JsonDocument doc;
     

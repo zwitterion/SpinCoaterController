@@ -223,6 +223,7 @@
             <h2>WiFi Configuration</h2>
             <label>SSID</label><input type="text" id="ssid">
             <label>Password</label><input type="password" id="pass">
+            <label>Hostname (.local)</label><input type="text" id="hostname" placeholder="spincoater">
             <button onclick="saveWifi()" class="btn-primary" style="width: 100%; margin-top: 10px;">Save WiFi</button>
         </div>
 
@@ -709,7 +710,10 @@
                 document.getElementById('mapStartPWM').value = data.sys.mapStartPWM ? data.sys.mapStartPWM + " us" : "N/A";
                 isCalibrated = data.sys.calibrated || false;
                 document.getElementById('ssid').value = data.wifi.ssid;
-            } catch (e) { /* console.error("Fetch Settings Error:", e); */ }
+                document.getElementById('hostname').value = data.wifi.hostname || "spincoater";
+            } catch (e) { 
+                console.error("Fetch Settings Error:", e); 
+            }
         }
 
         async function savePid() {
@@ -751,7 +755,8 @@
             const data = {
                 wifi: {
                     ssid: document.getElementById('ssid').value,
-                    pass: document.getElementById('pass').value
+                    pass: document.getElementById('pass').value,
+                    hostname: document.getElementById('hostname').value
                 }
             };
             if (await showConfirm("Save WiFi Credentials?")) {
@@ -921,12 +926,12 @@
 
         // Init
         async function init() {
-            // console.log("Starting Init...");
             await fetchProfiles();
-            await new Promise(r => setTimeout(r, 100)); // Small breathing room for server
+            await new Promise(r => setTimeout(r, 200)); 
             await loadSettings();
+            // Allow sockets to settle
+            await new Promise(r => setTimeout(r, 500)); 
             connect(); // Connect WebSocket LAST to avoid contention
-            // console.log("Init Complete");
         }
         init();
     </script>

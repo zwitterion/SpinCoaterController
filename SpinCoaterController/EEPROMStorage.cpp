@@ -34,6 +34,8 @@ void EEPROMStorage::wipe() {
     defaults.wifi.valid = false;
     memset(defaults.wifi.ssid, 0, 33);
     memset(defaults.wifi.password, 0, 65);
+    strncpy(defaults.wifi.hostname, "spincoater", 32);
+    defaults.wifi.hostname[32] = '\0';
     defaults.filterAlpha = 1.0f; // Default no filtering
     defaults.windupRange = 500.0f; // Default 500 RPM range
     defaults.escCalibrated = false;

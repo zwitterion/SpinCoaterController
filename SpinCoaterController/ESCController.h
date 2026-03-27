@@ -68,6 +68,9 @@ private:
     int _tuneBaseThrottle;
     float _tuneTargetRPM;
     int _tuneCycles;
+    float _tuneMaxRPM;
+    float _tuneMinRPM;
+    float _tuneAmplitudeSum;
     unsigned long _tuneLastCrossTime;
     float _tunePeriodSum;
     int _lastThrottle;

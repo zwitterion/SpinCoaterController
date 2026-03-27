@@ -69,7 +69,7 @@ A complete, production-quality firmware for a DIY Spin Coater based on the **Ard
 *   Connect your phone/PC to the WiFi network **`SpinCoater-XXXX`** (password is usually empty or not set).
 *   A captive portal should open. If not, navigate to `http://192.168.4.1`.
 *   Enter your local WiFi credentials in the **Settings** card and click **Save WiFi**.
-*   The device will reboot and connect to your network. The LED Matrix will scroll the new IP address.
+*   The device will reboot and connect to your network. The LED Matrix will scroll the new IP address. You can now access the controller at **`http://spincoater.local`**.
 
 ### 2. ESC Calibration (Crucial)
 *   Before the first run, go to the **System Options** card on the dashboard.
