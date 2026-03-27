@@ -38,8 +38,6 @@ void EEPROMStorage::wipe() {
     defaults.windupRange = 500.0f; // Default 500 RPM range
     defaults.escCalibrated = false;
     defaults.controlMode = CONTROL_PID;
-    defaults.motorKV = 850.0f;
-    defaults.batteryVoltage = 11.1f;
 
     saveSettings(defaults);
     

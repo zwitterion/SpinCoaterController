@@ -16,7 +16,8 @@ enum SystemState {
     STATE_EMERGENCY_STOP,
     STATE_TUNING,
     STATE_MANUAL,
-    STATE_CALIBRATING
+    STATE_CALIBRATING,
+    STATE_MAPPING
 };
 
 enum RampType {
@@ -72,8 +73,10 @@ struct SystemSettings {
     float windupRange; // RPM error range for integration
     bool escCalibrated;
     ControlMode controlMode;
-    float motorKV; // RPM per volt
-    float batteryVoltage; // Battery nominal voltage
+    // Mapping Results
+    float mapSlope;
+    float mapIntercept;
+    int mapStartPWM;
 };
 
 // ============================================================
@@ -85,10 +88,12 @@ struct TelemetryData {
     float currentRPM;
     float targetRPM;
     float throttlePercent;
+    int pulseWidth;
     int currentStepIndex;
     unsigned long stepTimeRemaining;
     const char* errorMessage;
     int profileId;
+    bool isMapPoint;
 };
 
 #endif

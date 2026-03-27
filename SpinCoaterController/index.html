@@ -135,6 +135,37 @@
             </div>
         </div>
 
+        <!-- Card 1.7: RPM Tuning -->
+        <div class="card">
+            <h2>RPM Tuning</h2>
+            <h3 style="font-size: 0.9em; color: var(--neon-blue); margin-bottom: 10px; text-transform: uppercase;">PWM Range</h3>
+            <div class="row">
+                <div class="col">
+                    <label>Start (us)</label>
+                    <input type="number" id="pwmStart" min="0" max="2000" step="1" value="1500">
+                </div>
+                <div class="col">
+                    <label>End (us)</label>
+                    <input type="number" id="pwmEnd" min="0" max="2000" step="1" value="2000">
+                </div>
+                <div class="col">
+                    <label>Step (us)</label>
+                    <input type="number" id="pwmStep" min="1" max="500" step="1" value="20">
+                </div>
+            </div>
+            <button class="btn-primary" onclick="startPwmMap()" style="width: 100%; margin-top: 10px;">Start PWM Mapping</button>
+            <button class="btn-success" onclick="downloadMapCsv()" style="width: 100%; margin-top: 10px;">Download CSV</button>
+
+            <div id="mappingTableContainer" class="hidden" style="margin-top: 15px; max-height: 150px; overflow-y: auto; border-top: 1px solid var(--border-color);">
+                <table>
+                    <thead>
+                        <tr><th>PWM (us)</th><th>RPM</th></tr>
+                    </thead>
+                    <tbody id="mappingTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- Card 2: Profile Editor -->
         <div class="card">
             <h2>Profile Editor <button onclick="showProfileHelp()" style="float:right; padding: 2px 8px; font-size: 0.7em; background: transparent; border: 1px solid var(--neon-blue); color: var(--neon-blue); cursor: pointer;">?</button></h2>
@@ -214,11 +245,11 @@
                 </div>
             </div>
             <div class="row">
-                <div class="col"><label>Motor KV (RPM/V)</label><input type="number" id="motorKV" step="1" value="850"></div>
-                <div class="col"><label>Battery Voltage (V)</label><input type="number" id="batteryVoltage" step="0.1" value="11.1"></div>
-            
+                <div class="col"><label>Calculated Slope</label><input type="text" id="mapSlope" readonly style="background:#111; color:var(--neon-blue);"></div>
+                <div class="col"><label>Inferred Start PWM</label><input type="text" id="mapStartPWM" readonly style="background:#111; color:var(--neon-blue);"></div>
             </div>
             <button onclick="saveSystem()" class="btn-primary" style="width: 100%; margin-bottom: 10px;">Save System Settings</button>
+            <button onclick="resetMappingData()" class="btn-warn" style="width: 100%; margin-bottom: 10px;">Clear Mapping Data</button>
             <button onclick="startCal()" class="btn-warn" style="width: 100%; margin-bottom: 10px;">Calibrate ESC</button>
             <div class="row">
                 <button onclick="reboot()" class="btn-warn" style="flex:1">Reboot</button>
@@ -316,28 +347,39 @@
         <div class="modal-content">
             <h3 style="color: var(--neon-yellow); margin-top: 0;">ESC Calibration</h3>
             <div id="calStep0">
-                <p><strong>WARNING:</strong>Remove samples from spin coater if possible.</p>
+                <p><strong>WARNING:</strong>This is for advanced ESCs like the QuickRun series. Ensure your ESC requires this 3-point calibration (Neutral, Full Forward, Full Brake). Disconnect motor if possible.</p>
                 <p>1. Disconnect ESC Power (Battery/Plug).</p>
                 <p>2. Keep USB connected to Arduino.</p>
-                <p>3. Click Start to send MAX throttle.</p>
+                <p>3. Click Start.</p>
                 <div class="modal-btns">
                     <button onclick="closeCal()" class="btn-warn">Cancel</button>
                     <button onclick="calNext(1)" class="btn-success">Start</button>
                 </div>
             </div>
             <div id="calStep1" hidden>
-                <p style="color: var(--neon-red); font-weight:bold;">Sending MAX Throttle (2000us)</p>
+                <p style="color: var(--neon-yellow); font-weight:bold;">Sending NEUTRAL Signal (1500us)</p>
                 <p>1. Connect ESC Power NOW.</p>
-                <p>2. Wait for "Musical Tone" then "2 Beeps".</p>
-                <p>3. Immediately click Next.</p>
+                <p>2. Wait for the ESC to boot up (usually a few beeps).</p>
+                <p>3. Press the "SET" button on your ESC until you hear a beep to confirm the neutral point.</p>
+                <p>4. Click Next to set the full forward position.</p>
                 <div class="modal-btns">
-                    <button onclick="calNext(2)" class="btn-primary">Next (Low Throttle)</button>
+                    <button onclick="calNext(2)" class="btn-primary">Next (Forward)</button>
                 </div>
             </div>
             <div id="calStep2" hidden>
-                <p style="color: var(--neon-green); font-weight:bold;">Sending MIN Throttle (1000us)</p>
-                <p>1. Wait for "Arming Beeps".</p>
-                <p>2. Calibration Complete.</p>
+                <p style="color: var(--neon-green); font-weight:bold;">Sending HIGH FORWARD Signal (2000us)</p>
+                <p>1. The motor should NOT be spinning.</p>
+                <p>2. Press the "SET" button on your ESC again. A different beep should confirm the forward point.</p>
+                <p>3. Click Next to set the brake position.</p>
+                <div class="modal-btns">
+                    <button onclick="calNext(3)" class="btn-primary">Next (Brake)</button>
+                </div>
+            </div>
+            <div id="calStep3" hidden>
+                <p style="color: var(--neon-red); font-weight:bold;">Sending BRAKE Signal (1000us)</p>
+                <p>1. The motor should NOT be spinning.</p>
+                <p>2. Press the "SET" button on your ESC one last time. A final beep sequence should confirm all settings are saved.</p>
+                <p>3. Click Finish. The ESC is now calibrated.</p>
                 <div class="modal-btns">
                     <button onclick="calFinish()" class="btn-success">Finish</button>
                 </div>
@@ -361,6 +403,7 @@
         let ws;
         let profiles = [];
         let currentProfile = { steps: [] };
+        let pwmMappingPoints = [];
         let manualMode = false;
         let isCalibrated = false;
         
@@ -388,8 +431,18 @@
 
         function updateDashboard(data) {
             document.getElementById('rpmDisplay').innerText = Math.round(data.rpm);
-            document.getElementById('targetDisplay').innerText = Math.round(data.target);
+            const targetRpmElement = document.getElementById('targetDisplay');
+            targetRpmElement.innerText = Math.round(data.target);
+            if (data.pulseWidth) {
+                targetRpmElement.parentElement.title = `Pulse Width: ${data.pulseWidth}µs`;
+            }
             
+            // Capture mapping points if sent by server
+            if (data.mapPoint) {
+                pwmMappingPoints.push({ x: chartData.rpm.length, rpm: data.mapPoint.rpm, pwm: data.mapPoint.pwm });
+                updateMappingTable();
+            }
+
             const stateEl = document.getElementById('sysState');
             stateEl.innerText = data.state;
             stateEl.style.color = (data.state === "EMERGENCY" || data.state === "ERROR") ? "var(--neon-red)" : (data.state === "TUNING" || data.state === "MANUAL" || data.state === "CALIBRATING" ? "var(--neon-yellow)" : "var(--neon-blue)");
@@ -508,6 +561,17 @@
                 });
                 ctx.stroke();
             }
+
+            // Draw Mapping Points (Markers)
+            pwmMappingPoints.forEach(pt => {
+                const x = pt.x * stepX;
+                const y = mapY(pt.rpm);
+                ctx.fillStyle = 'var(--neon-yellow)';
+                ctx.beginPath();
+                ctx.arc(x, y, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillText(pt.pwm + "us", x + 5, y - 5);
+            });
             
             drawLine(chartData.target, '#00f3ff'); // Neon Blue for Target
             drawLine(chartData.rpm, '#00ff41');    // Neon Green for RPM
@@ -641,8 +705,8 @@
                 document.getElementById('maxRPM').value = data.sys.maxRPM || 10000;
                 document.getElementById('controlMode').value = (data.sys.controlMode !== undefined) ? data.sys.controlMode : 0;
                 document.getElementById('rpmCheck').checked = (data.sys.rpmCheck !== undefined) ? data.sys.rpmCheck : true;
-                document.getElementById('motorKV').value = (data.sys.motorKV !== undefined) ? data.sys.motorKV : 850;
-                document.getElementById('batteryVoltage').value = (data.sys.batteryVoltage !== undefined) ? data.sys.batteryVoltage : 11.1;
+                document.getElementById('mapSlope').value = data.sys.mapSlope ? data.sys.mapSlope.toFixed(4) : "N/A";
+                document.getElementById('mapStartPWM').value = data.sys.mapStartPWM ? data.sys.mapStartPWM + " us" : "N/A";
                 isCalibrated = data.sys.calibrated || false;
                 document.getElementById('ssid').value = data.wifi.ssid;
             } catch (e) { /* console.error("Fetch Settings Error:", e); */ }
@@ -667,9 +731,7 @@
                 sys: {
                     maxRPM: parseInt(document.getElementById('maxRPM').value),
                     controlMode: parseInt(document.getElementById('controlMode').value),
-                    rpmCheck: document.getElementById('rpmCheck').checked,
-                    motorKV: parseFloat(document.getElementById('motorKV').value),
-                    batteryVoltage: parseFloat(document.getElementById('batteryVoltage').value)
+                    rpmCheck: document.getElementById('rpmCheck').checked
                 }
             };
             if (await showConfirm("Save System Settings?")) {
@@ -747,6 +809,7 @@
             document.getElementById('calStep0').hidden = false;
             document.getElementById('calStep1').hidden = true;
             document.getElementById('calStep2').hidden = true;
+            document.getElementById('calStep3').hidden = true;
         }
         function closeCal() {
             document.getElementById('calModal').hidden = true;
@@ -754,13 +817,20 @@
         }
         async function calNext(step) {
             if (step === 1) {
-                await fetch('/calibrate', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({throttle: 2000}) });
+                // Send Neutral signal
+                await fetch('/calibrate', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({throttle: 1500}) });
                 document.getElementById('calStep0').hidden = true;
                 document.getElementById('calStep1').hidden = false;
             } else if (step === 2) {
-                await fetch('/calibrate', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({throttle: 1000}) });
+                // Send High Forward signal
+                await fetch('/calibrate', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({throttle: 2000}) });
                 document.getElementById('calStep1').hidden = true;
                 document.getElementById('calStep2').hidden = false;
+            } else if (step === 3) {
+                // Send Brake signal
+                await fetch('/calibrate', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({throttle: 1000}) });
+                document.getElementById('calStep2').hidden = true;
+                document.getElementById('calStep3').hidden = false;
             }
         }
         async function calFinish() {
@@ -773,6 +843,51 @@
             isCalibrated = true;
             
             await showAlert("Calibration Sequence Finished.");
+        }
+
+        async function startPwmMap() {
+            const start = parseInt(document.getElementById('pwmStart').value);
+            const end = parseInt(document.getElementById('pwmEnd').value);
+            const step = parseInt(document.getElementById('pwmStep').value);
+            
+            if (await showConfirm(`Start PWM-to-RPM mapping from ${start} to ${end}? This will take some time.`)) {
+                pwmMappingPoints = []; // Clear old results
+                document.getElementById('mappingTableBody').innerHTML = '';
+                document.getElementById('mappingTableContainer').classList.add('hidden');
+                await fetch('/startMap', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({start, end, step}) });
+                await showAlert("Mapping process started. Watch the chart.");
+            }
+        }
+
+        function updateMappingTable() {
+            const container = document.getElementById('mappingTableContainer');
+            const tbody = document.getElementById('mappingTableBody');
+            container.classList.remove('hidden');
+            tbody.innerHTML = '';
+            pwmMappingPoints.forEach(pt => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${pt.pwm}us</td><td>${Math.round(pt.rpm)}</td>`;
+                tbody.appendChild(tr);
+            });
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function downloadMapCsv() {
+            if (pwmMappingPoints.length === 0) {
+                showAlert("No mapping data available to download. Run the mapping process first.");
+                return;
+            }
+            let csvContent = "data:text/csv;charset=utf-8,PWM (us),RPM\n";
+            pwmMappingPoints.forEach(pt => {
+                csvContent += `${pt.pwm},${Math.round(pt.rpm)}\n`;
+            });
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "rpm_pwm_mapping.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
 
         async function toggleManual() {

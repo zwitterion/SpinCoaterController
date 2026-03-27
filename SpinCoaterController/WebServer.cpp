@@ -261,8 +261,9 @@ void WebServer::handleApiRequest(WiFiClient& client, String method, String uri, 
             doc["sys"]["calibrated"] = s.escCalibrated;
             doc["sys"]["controlMode"] = (int)s.controlMode;
             doc["sys"]["rpmCheck"] = g_rpmCheckEnabled;
-            doc["sys"]["motorKV"] = s.motorKV;
-            doc["sys"]["batteryVoltage"] = s.batteryVoltage;
+            doc["sys"]["mapSlope"] = s.mapSlope;
+            doc["sys"]["mapIntercept"] = s.mapIntercept;
+            doc["sys"]["mapStartPWM"] = s.mapStartPWM;
             doc["wifi"]["ssid"] = s.wifi.ssid;
             // Don't send password back
             
@@ -292,8 +293,6 @@ void WebServer::handleApiRequest(WiFiClient& client, String method, String uri, 
                     if (sys.containsKey("maxRPM")) s.maxRPM = sys["maxRPM"];
                     if (sys.containsKey("calibrated")) s.escCalibrated = sys["calibrated"];
                     if (sys.containsKey("controlMode")) s.controlMode = (ControlMode)sys["controlMode"].as<int>();
-                    if (sys.containsKey("motorKV")) s.motorKV = sys["motorKV"].as<float>();
-                    if (sys.containsKey("batteryVoltage")) s.batteryVoltage = sys["batteryVoltage"].as<float>();
                     
                     if (sys.containsKey("rpmCheck")) {
                         g_rpmCheckEnabled = sys["rpmCheck"];
@@ -322,8 +321,7 @@ void WebServer::handleApiRequest(WiFiClient& client, String method, String uri, 
                     escController.setControlMode((int)s.controlMode);
                 }
                 
-                escController.setMotorKV(s.motorKV);
-                escController.setBatteryVoltage(s.batteryVoltage);
+                escController.setMappingParams(s.mapSlope, s.mapStartPWM);
                 client.println("HTTP/1.1 200 OK\r\n\r\n");
             }
         }
@@ -379,6 +377,31 @@ void WebServer::handleApiRequest(WiFiClient& client, String method, String uri, 
         return;
     }
 
+    // 10. API: PWM Mapping
+    if (path == "/startMap" && method == "POST") {
+        JsonDocument doc;
+        DeserializationError error = deserializeJson(doc, body);
+        
+        if (error) {
+            Serial.print("WebServer: Failed to parse /startMap JSON. Error: ");
+            Serial.println(error.c_str());
+            Serial.print("Raw Body: ");
+            Serial.println(body);
+            client.println("HTTP/1.1 400 Bad Request\r\n\r\n");
+            return;
+        }
+
+        int start = doc["start"] | 1000;
+        int end = doc["end"] | 2000;
+        int step = doc["step"] | 20;
+
+        Serial.println("--- PWM MAPPING START ---");
+        Serial.print("Range: "); Serial.print(start); Serial.print("us to "); Serial.print(end); Serial.print("us | Step: "); Serial.println(step);
+        _engine.startPwmMapping(start, end, step);
+        client.println("HTTP/1.1 200 OK\r\n\r\n");
+        return;
+    }
+
     // 404
     client.println("HTTP/1.1 404 Not Found\r\n\r\n");
 }
@@ -409,6 +432,7 @@ void WebServer::broadcastTelemetry(const TelemetryData& data) {
         case STATE_TUNING: doc["state"] = "TUNING"; break;
         case STATE_MANUAL: doc["state"] = "MANUAL"; break;
         case STATE_CALIBRATING: doc["state"] = "CALIBRATING"; break;
+        case STATE_MAPPING: doc["state"] = "MAPPING"; break;
     }
     
     doc["rpm"] = data.currentRPM;
@@ -416,6 +440,16 @@ void WebServer::broadcastTelemetry(const TelemetryData& data) {
     doc["step"] = data.currentStepIndex + 1; // 1-based for UI
     doc["timeRem"] = data.stepTimeRemaining;
     doc["pId"] = data.profileId;
+    doc["pulseWidth"] = data.pulseWidth;
+    doc["throttlePercent"] = data.throttlePercent;
+
+    // If we are in mapping mode, we send the current PWM/RPM as a mapPoint 
+    // whenever a stabilization period (5s) completes.
+    if (data.isMapPoint) {
+        JsonObject mapPoint = doc["mapPoint"].to<JsonObject>();
+        mapPoint["pwm"] = data.pulseWidth;
+        mapPoint["rpm"] = data.currentRPM;
+    }
     
     if (data.errorMessage) {
         doc["error"] = data.errorMessage;

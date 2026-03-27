@@ -72,8 +72,9 @@ void setup() {
         escController.setControlMode((int)settings.controlMode);
     }
     
-    escController.setMotorKV(settings.motorKV);
-    escController.setBatteryVoltage(settings.batteryVoltage);
+    // 3.1 Apply empirical mapping parameters
+    escController.setMappingParams(settings.mapSlope, settings.mapStartPWM);
+    
     safetyManager.setMaxRPM(settings.maxRPM);
     
     // 4. Initialize Logic

@@ -22,6 +22,7 @@ public:
     void resume();
     void startTuning();
     void startManual();
+    void startPwmMapping(int start, int end, int step);
     void setManualRPM(float rpm);
     void setCalibrationThrottle(int us);
     
@@ -44,6 +45,19 @@ private:
     
     float _currentTargetRPM;
     float _manualTargetRPM;
+    
+    int _mappingPulseWidth;
+    int _mappingEndPulse;
+    int _lastRecordedPwm;
+    int _mappingStep;
+    bool _isMapPointRecorded;
+
+    // Regression Variables
+    double _sumX;
+    double _sumY;
+    double _sumXY;
+    double _sumX2;
+    int _mappingCount;
     
     // Helper to calculate instantaneous target based on ramp
     float calculateRampRPM(const SpinStep& step, unsigned long elapsedStepTime);

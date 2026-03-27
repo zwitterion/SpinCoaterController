@@ -49,5 +49,9 @@ def main():
         f.write("\n};\n\n")
         f.write("#endif\n")
 
+    print ("Conversion complete!", f"Mode: {args.mode}, Input: {args.input}, Output: {args.output}")
+
+
 if __name__ == "__main__":
     main()
+    

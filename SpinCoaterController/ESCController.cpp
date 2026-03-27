@@ -1,19 +1,20 @@
 #include "ESCController.h"
 
-ESCController::ESCController(uint8_t pin) : _pin(pin), _targetRPM(0), 
+ESCController::ESCController(uint8_t pin) : _pin(pin), _esc(pin), _targetRPM(0), 
     _kp(0), _ki(0), _kd(0), _integral(0), _prevError(0), _lastPIDTime(0),
-    _minUs(1000), _maxUs(2000), _filterAlpha(1.0), _windupRange(500), _filteredRPM(0),
-    _tuneState(TUNE_IDLE), _lastThrottle(1000), _controlMode(CONTROL_PID), _motorKV(850.0f), _batteryVoltage(11.1f) {
+    _minUs(1500), _maxUs(2000), _filterAlpha(1.0), _windupRange(500), _filteredRPM(0),
+    _tuneState(TUNE_IDLE), _lastThrottle(1500), _controlMode(CONTROL_PID),
+    _mapSlope(0.0f), _mapStartPWM(1500) {
 }
 
 void ESCController::begin() {
-    _esc.attach(_pin, _minUs, _maxUs);
+    _esc.begin(_minUs); // Arm/init ESC using R4ESC API
     stopMotor(); // Send min throttle to arm ESC
 }
 
 void ESCController::setThrottleMicroseconds(int us) {
     // Safety clamp
-    us = constrain(us, _minUs, _maxUs);
+    us = constrain(us, 1000, 2000);
     _lastThrottle = us;
     _esc.writeMicroseconds(us);
 }
@@ -29,17 +30,15 @@ void ESCController::setTargetRPM(float rpm) {
         // If starting from idle, reset PID timers to prevent integral windup from stale time
         if (_controlMode == CONTROL_KV) {
             _targetRPM = rpm;
-            // Open-loop: compute throttle percent from KV * Vbat
-            float denom = _motorKV * _batteryVoltage;
-            float pct = 0.0f;
-            if (denom > 0.0f) {
-                pct = rpm / denom;
+            int us = 1500;
+            
+            if (_mapSlope > 0.001f) {
+                // Use Empirical Mapping from PWM tuning process
+                us = _mapStartPWM + (int)(rpm / _mapSlope);
+            } else {
+                // If no mapping exists, default to neutral
+                us = 1500;
             }
-            pct = constrain(pct, 0.0f, 1.0f);
-            int us = _minUs + (int)(pct * (_maxUs - _minUs));
-            // Serial.print("KV Mode: Target RPM = "); Serial.print(rpm);
-            // Serial.print(", Throttle % = "); Serial.print(pct * 100.0f);
-            // Serial.print(", Throttle us = "); Serial.println(us);
             setThrottleMicroseconds(us);
         } else {
             if (_targetRPM <= 0) {
@@ -56,7 +55,7 @@ void ESCController::stopMotor() {
     _targetRPM = 0;
     _integral = 0;
     _prevError = 0;
-    setThrottleMicroseconds(_minUs);
+    setThrottleMicroseconds(1500);
 }
 
 void ESCController::setPID(float kp, float ki, float kd) {
@@ -149,12 +148,9 @@ void ESCController::setControlMode(int mode) {
     else _controlMode = CONTROL_PID;
 }
 
-void ESCController::setMotorKV(float kv) {
-    if (kv > 0.0f) _motorKV = kv;
-}
-
-void ESCController::setBatteryVoltage(float voltage) {
-    if (voltage > 0.0f) _batteryVoltage = voltage;
+void ESCController::setMappingParams(float slope, int startPWM) {
+    _mapSlope = slope;
+    _mapStartPWM = startPWM;
 }
 
 float ESCController::getThrottlePercent() {

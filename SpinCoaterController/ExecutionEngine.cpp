@@ -2,7 +2,11 @@
 
 ExecutionEngine::ExecutionEngine(RPMReader& rpm, ESCController& esc, SafetyManager& safety, ProfileManager& pm, EEPROMStorage& storage)
     : _rpmReader(rpm), _escController(esc), _safetyManager(safety), _profileManager(pm), _storage(storage),
-      _state(STATE_IDLE), _currentStepIndex(0), _stepStartTime(0), _pauseStartTime(0), _currentTargetRPM(0), _manualTargetRPM(0) {
+      _state(STATE_IDLE), _currentStepIndex(0), _stepStartTime(0), _pauseStartTime(0), 
+      _currentTargetRPM(0), _manualTargetRPM(0), _mappingPulseWidth(0), _mappingEndPulse(0), 
+      _lastRecordedPwm(0), _mappingStep(20), _isMapPointRecorded(false),
+      _sumX(0), _sumY(0), _sumXY(0), _sumX2(0), _mappingCount(0) {
+    // Mapping variables initialized in member initializer list above
 }
 
 void ExecutionEngine::begin() {
@@ -88,6 +92,65 @@ void ExecutionEngine::update() {
             _escController.update(currentRPM);
             break;
 
+        case STATE_MAPPING: {
+            unsigned long now = millis();
+            _escController.setThrottleMicroseconds(_mappingPulseWidth);
+
+            // Log new PWM value being tested
+            static int lastLoggedPWM = -1;
+            if (lastLoggedPWM != _mappingPulseWidth) {
+                Serial.print("Mapping: Applying "); Serial.print(_mappingPulseWidth);
+                Serial.println("us. Waiting 5s for stabilization...");
+                lastLoggedPWM = _mappingPulseWidth;
+            }
+            
+            // Wait 5 seconds for RPM to stabilize at this PWM value
+            if (now - _stepStartTime >= 5000) {
+                Serial.print("Mapping Point Captured -> PWM: "); Serial.print(_mappingPulseWidth);
+                Serial.print("us | Final RPM: "); Serial.println(currentRPM);
+
+                // Only include points where the motor is actually spinning for the line fit
+                if (currentRPM > 1.0f) {
+                    _sumX += _mappingPulseWidth;
+                    _sumY += currentRPM;
+                    _sumXY += ((double)_mappingPulseWidth * currentRPM);
+                    _sumX2 += ((double)_mappingPulseWidth * _mappingPulseWidth);
+                    _mappingCount++;
+                }
+
+                _lastRecordedPwm = _mappingPulseWidth; // Lock the PWM value used for this measurement
+                _isMapPointRecorded = true;
+                _mappingPulseWidth += _mappingStep;
+                _stepStartTime = now;
+
+                if (_mappingPulseWidth > _mappingEndPulse) {
+                    Serial.println("Mapping Process Complete. Calculating Fit...");
+                    
+                    if (_mappingCount >= 2) {
+                        float slope = (_mappingCount * _sumXY - _sumX * _sumY) / (_mappingCount * _sumX2 - _sumX * _sumX);
+                        float intercept = (_sumY - slope * _sumX) / _mappingCount;
+                        int inferredStart = (int)(-intercept / slope);
+
+                        SystemSettings s;
+                        _storage.loadSettings(s);
+                        s.mapSlope = slope;
+                        s.mapIntercept = intercept;
+                        s.mapStartPWM = inferredStart;
+                        
+                        // Push new empirical parameters to the controller immediately
+                        _escController.setMappingParams(slope, inferredStart);
+                        
+                        _storage.saveSettings(s);
+                        Serial.print("Fit Result: Slope="); Serial.print(slope); Serial.print(" StartPWM="); Serial.println(inferredStart);
+                    }
+                    stop();
+                }
+            }
+            // We don't use PID during raw PWM mapping
+            _currentTargetRPM = 0; 
+            break;
+        }
+
         case STATE_CALIBRATING:
             // Throttle is set directly by setCalibrationThrottle, no PID or ramp
             break;
@@ -142,6 +205,19 @@ void ExecutionEngine::startTuning() {
         _state = STATE_TUNING;
         _escController.startTuning();
     }
+}
+
+void ExecutionEngine::startPwmMapping(int start, int end, int step) {
+    _state = STATE_MAPPING;
+    _mappingPulseWidth = start;
+    _mappingEndPulse = end;
+    _mappingStep = (step > 0) ? step : 20;
+    _sumX = 0;
+    _sumY = 0;
+    _sumXY = 0;
+    _sumX2 = 0;
+    _mappingCount = 0;
+    _stepStartTime = millis();
 }
 
 void ExecutionEngine::startManual() {
@@ -202,6 +278,17 @@ TelemetryData ExecutionEngine::getTelemetry() {
     data.targetRPM = _currentTargetRPM;
     data.throttlePercent = _escController.getThrottlePercent();
     data.currentStepIndex = _currentStepIndex;
+    
+    // Use the locked mapping PWM if this is a recorded point, 
+    // otherwise use live throttle
+    if (_isMapPointRecorded) {
+        data.pulseWidth = _lastRecordedPwm;
+    } else {
+        data.pulseWidth = _escController.getThrottleMicroseconds();
+    }
+
+    data.isMapPoint = _isMapPointRecorded;
+    _isMapPointRecorded = false; // Reset flag after reporting
     
     if (_state == STATE_RUNNING) {
         unsigned long elapsed = millis() - _stepStartTime;

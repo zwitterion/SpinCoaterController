@@ -56,7 +56,7 @@ A complete, production-quality firmware for a DIY Spin Coater based on the **Ard
     *   `WiFiS3`
     *   `ArduinoJson`
     *   `Arduino_LED_Matrix`
-    *   `Servo Version >= 1.3.0 **IMPORTANT**` 
+    *   `Servo Version >= 1.3.0 **⚠️ IMPORTANT**` 
 2.  **Web Assets:**
     *   The HTML/JS is compressed into `web_assets.h`.
     *   To modify the UI, edit `index.html` and run: `python convert.py --mode prod index.html web_assets.h`.
@@ -76,7 +76,15 @@ A complete, production-quality firmware for a DIY Spin Coater based on the **Ard
 *   Click **Calibrate ESC**.
 *   Follow the on-screen wizard instructions carefully (requires toggling ESC power).
 
-### 3. Creating a Profile
+### 3. PWM-to-RPM Mapping (Empirical Tuning)
+*   After calibrating the ESC, you must characterize your motor's performance.
+*   Go to the **RPM Tuning** card.
+*   Set your **Start (us)** (usually 1500), **End (us)** (usually 2000), and **Step** size.
+*   Click **Start PWM Mapping**. 
+*   The system will automatically ramp the motor and use **Linear Regression** to calculate a best-fit line (Slope and Intercept).
+*   This step is mandatory for accurate speed control in **Open-Loop (KV)** mode and provides a baseline for PID feed-forward.
+
+### 4. Creating a Profile
 *   Go to the **Profile Editor** card.
 *   Click **New**.
 *   Enter a name (e.g., "Photoresist").
@@ -87,12 +95,12 @@ A complete, production-quality firmware for a DIY Spin Coater based on the **Ard
     *   **Type:** Linear, Exponential, or S-Curve (smooth).
 *   Click **Save**.
 
-### 4. Running a Process
+### 5. Running a Process
 *   Select your profile from the dropdown in the **Dashboard** or **Profile Editor**.
 *   Click **START**.
 *   Monitor the live RPM gauge and chart.
 
-### 5. PID Tuning
+### 6. PID Tuning
 *   If the RPM oscillates or is slow to reach the target:
     *   Go to **PID Controller** settings.
     *   Click **Auto Tune PID**. The motor will spin up and oscillate briefly to calculate ideal P, I, and D values.
@@ -103,6 +111,15 @@ A complete, production-quality firmware for a DIY Spin Coater based on the **Ard
 *   **Emergency Stop:** Click the red **STOP** button at any time to immediately cut throttle (0 RPM).
 *   **Connection Loss:** If the WebSocket disconnects, the system continues the current profile but will stop if a safety fault occurs.
 *   **Startup Protection:** The motor will not spin at boot until explicitly commanded.
+
+## 🔍 Motor Health Diagnostics
+
+The values generated during **PWM-to-RPM Mapping** provide a baseline for your hardware's health. Significant changes in these values during subsequent tunings can indicate maintenance needs:
+
+*   **Calculated Slope (RPM/µs):** Represents motor efficiency. A **decrease** in slope over time suggests increased mechanical resistance (e.g., debris in the spindle), bearing degradation, or a weakening power supply/battery.
+*   **Inferred Start PWM (µs):** Represents the "stiction" point.
+    *   **Increasing values:** Indicate that the motor requires more power to overcome static friction, often a sign of old grease or tight bearings.
+    *   **Values significantly far from 1500µs:** Suggest the ESC's internal neutral point has drifted and a fresh **ESC Calibration** is recommended.
 
 ## 🤖 AI-Assisted Development
 

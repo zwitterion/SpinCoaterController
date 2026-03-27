@@ -2,8 +2,10 @@
 #define ESC_CONTROLLER_H
 
 #include <Arduino.h>
-#include <Servo.h>
+//#include <Servo.h>
+#include "R4ESC.h"
 #include "types.h"
+
 
 class ESCController {
 public:
@@ -28,8 +30,7 @@ public:
     
     // Control mode: PID (closed-loop) or KV (open-loop using motor KV)
     void setControlMode(int mode);
-    void setMotorKV(float kv);
-    void setBatteryVoltage(float voltage);
+    void setMappingParams(float slope, int startPWM);
     float getThrottlePercent();
     
     // Tuning
@@ -39,7 +40,8 @@ public:
 
 private:
     uint8_t _pin;
-    Servo _esc;
+    //Servo _esc;
+    R4ESC _esc;
     
     float _targetRPM;
     float _kp, _ki, _kd;
@@ -56,8 +58,8 @@ private:
     
     // Control mode and motor params for open-loop KV mapping
     ControlMode _controlMode;
-    float _motorKV;
-    float _batteryVoltage;
+    float _mapSlope;
+    int _mapStartPWM;
     
     // Tuning State
     enum TuningState { TUNE_IDLE, TUNE_RAMP, TUNE_STABILIZE, TUNE_RELAY, TUNE_CALC };
