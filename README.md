@@ -1,6 +1,6 @@
 # Arduino UNO R4 WiFi Spin Coater Controller
 
-![Dashboard Screenshot](screenshot.png)
+![Dashboard Screenshot](screenshot.png?v=1)
 
 A complete, production-quality firmware for a DIY Spin Coater based on the **Arduino UNO R4 WiFi**. This system provides a modern, responsive Web UI to control a brushless motor with precision RPM feedback, allowing for complex spin coating recipes.
 
