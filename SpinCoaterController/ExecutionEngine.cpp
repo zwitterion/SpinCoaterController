@@ -20,7 +20,7 @@ void ExecutionEngine::update() {
     
     // 2. Safety Check 
     // (Always active unless in IDLE/ERROR to prevent lockup)
-    if (_state != STATE_IDLE && _state != STATE_ERROR && _state != STATE_EMERGENCY_STOP && _state != STATE_TUNING && _state != STATE_CALIBRATING) {
+    if (_state != STATE_IDLE && _state != STATE_ERROR && _state != STATE_EMERGENCY_STOP && _state != STATE_TUNING) {
         // We pass a dummy throttle value or rely on SafetyManager to check RPM vs Target
         if (!_safetyManager.check(currentRPM, _currentTargetRPM, _escController.getThrottleMicroseconds())) { 
             _state = STATE_EMERGENCY_STOP;
@@ -151,10 +151,6 @@ void ExecutionEngine::update() {
             break;
         }
 
-        case STATE_CALIBRATING:
-            // Throttle is set directly by setCalibrationThrottle, no PID or ramp
-            break;
-
         case STATE_ERROR:
         case STATE_EMERGENCY_STOP:
             _escController.stopMotor();
@@ -230,11 +226,6 @@ void ExecutionEngine::setManualRPM(float rpm) {
     if (_state == STATE_MANUAL) {
         _manualTargetRPM = rpm;
     }
-}
-
-void ExecutionEngine::setCalibrationThrottle(int us) {
-    _state = STATE_CALIBRATING;
-    _escController.setThrottleMicroseconds(us);
 }
 
 void ExecutionEngine::advanceStep() {

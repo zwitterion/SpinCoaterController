@@ -24,7 +24,6 @@ public:
     void startManual();
     void startPwmMapping(int start, int end, int step);
     void setManualRPM(float rpm);
-    void setCalibrationThrottle(int us);
     
     // Status
     TelemetryData getTelemetry();

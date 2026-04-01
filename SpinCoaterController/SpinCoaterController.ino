@@ -47,23 +47,29 @@ void setup() {
     // Wait for serial for debugging (optional, remove for production if needed)
     // while(!Serial) delay(10);
     
-    Serial.println(F("SpinCoater Booting..."));
+    Serial.println(F("SpinCoater Booting 1..."));
 
     // 1. Initialize Storage
     storage.begin();
+
     
     // Load RPM Check setting (stored at 510, just before profiles)
     EEPROM.get(510, g_rpmCheckEnabled);
     if (g_rpmCheckEnabled != 0 && g_rpmCheckEnabled != 1) g_rpmCheckEnabled = true; // Sanity check
 
     // 2. Initialize Hardware
-    escController.begin(); // Ensures motor is stopped (1000us)
+    Serial.println(F("Initializing Hardware..."));
+
+    escController.begin(); // Ensures motor is stopped 
     rpmReader.begin();
     safetyManager.begin();
     
     // 3. Load Settings & Apply
+    Serial.println(F("Loading Settings..."));
+
     SystemSettings settings;
     storage.loadSettings(settings);
+    Serial.println(F("Settings Loaded. Applying to ESC..."));
     escController.setPID(settings.pid.kp, settings.pid.ki, settings.pid.kd);
     escController.setCalibration(settings.escMinMicros, settings.escMaxMicros);
     escController.setFilterAlpha(settings.filterAlpha);
@@ -88,10 +94,14 @@ void setup() {
     // 5. Initialize Network
     wifiManager.begin();
     webServer.begin();
+    Serial.println(F("Network Ready."));
 
     // Start Multicast DNS (mDNS) responder
-    // Allows access via http://<hostname>.local
-    mdns.begin(WiFi.localIP(), settings.wifi.hostname);
+    IPAddress localIP = WiFi.localIP();
+    if (localIP != IPAddress(0,0,0,0)) {
+        Serial.print(F("Starting mDNS: ")); Serial.println(settings.wifi.hostname);
+        mdns.begin(localIP, settings.wifi.hostname);
+    }
     
     Serial.println(F("System Ready."));
 }

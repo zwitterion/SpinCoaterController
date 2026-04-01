@@ -142,7 +142,7 @@
             <div class="row">
                 <div class="col">
                     <label>Start (us)</label>
-                    <input type="number" id="pwmStart" min="0" max="2000" step="1" value="1500">
+                    <input type="number" id="pwmStart" min="0" max="2000" step="1" value="0">
                 </div>
                 <div class="col">
                     <label>End (us)</label>
@@ -229,7 +229,7 @@
 
         <!-- Card 5: System -->
         <div class="card">
-            <h2>System Options <button onclick="showCalHelp()" style="float:right; padding: 2px 8px; font-size: 0.7em; background: transparent; border: 1px solid var(--neon-blue); color: var(--neon-blue); cursor: pointer;">?</button></h2>
+            <h2>System Options</h2>
             <label>Absolute Max RPM</label><input type="number" id="maxRPM">
             <div class="row">
                 <div class="col"><label>Control Mode</label>
@@ -251,7 +251,6 @@
             </div>
             <button onclick="saveSystem()" class="btn-primary" style="width: 100%; margin-bottom: 10px;">Save System Settings</button>
             <button onclick="resetMappingData()" class="btn-warn" style="width: 100%; margin-bottom: 10px;">Clear Mapping Data</button>
-            <button onclick="startCal()" class="btn-warn" style="width: 100%; margin-bottom: 10px;">Calibrate ESC</button>
             <div class="row">
                 <button onclick="reboot()" class="btn-warn" style="flex:1">Reboot</button>
                 <button onclick="factoryReset()" class="btn-danger" style="flex:1">Factory Reset</button>
@@ -318,75 +317,7 @@
         </div>
     </div>
 
-    <!-- ESC Calibration Help Modal -->
-    <div id="calHelpModal" class="modal" hidden>
-        <div class="modal-content help-content">
-            <h3 style="color: var(--neon-blue); margin-top: 0;">ESC Calibration Guide</h3>
-            <div class="help-text">
-                <h4>What is it?</h4>
-                <p>ESC Calibration synchronizes the controller's throttle signal (1000-2000us) with the ESC's input range.</p>
-                
-                <h4>When to perform it?</h4>
-                <ul>
-                    <li><strong>First Setup:</strong> Essential for new builds.</li>
-                    <li><strong>Deadband Issues:</strong> If motor doesn't spin until high throttle.</li>
-                    <li><strong>Top Speed:</strong> If motor reaches max speed too early or never reaches it.</li>
-                    <li><strong>New Hardware:</strong> After replacing ESC or Arduino.</li>
-                </ul>
-
-                <h4>Process</h4>
-                <p>The wizard sends MAX throttle (2000us) on boot to enter calibration mode, then MIN throttle (1000us) to save the range.</p>
-            </div>
-            <div class="modal-btns">
-                <button onclick="closeCalHelp()" class="btn-primary">Close</button>
-            </div>
-        </div>
-    </div>
-
     <!-- Calibration Modal -->
-    <div id="calModal" class="modal" hidden>
-        <div class="modal-content">
-            <h3 style="color: var(--neon-yellow); margin-top: 0;">ESC Calibration</h3>
-            <div id="calStep0">
-                <p><strong>WARNING:</strong>This is for advanced ESCs like the QuickRun series. Ensure your ESC requires this 3-point calibration (Neutral, Full Forward, Full Brake). Disconnect motor if possible.</p>
-                <p>1. Disconnect ESC Power (Battery/Plug).</p>
-                <p>2. Keep USB connected to Arduino.</p>
-                <p>3. Click Start.</p>
-                <div class="modal-btns">
-                    <button onclick="closeCal()" class="btn-warn">Cancel</button>
-                    <button onclick="calNext(1)" class="btn-success">Start</button>
-                </div>
-            </div>
-            <div id="calStep1" hidden>
-                <p style="color: var(--neon-yellow); font-weight:bold;">Sending NEUTRAL Signal (1500us)</p>
-                <p>1. Connect ESC Power NOW.</p>
-                <p>2. Wait for the ESC to boot up (usually a few beeps).</p>
-                <p>3. Press the "SET" button on your ESC until you hear a beep to confirm the neutral point.</p>
-                <p>4. Click Next to set the full forward position.</p>
-                <div class="modal-btns">
-                    <button onclick="calNext(2)" class="btn-primary">Next (Forward)</button>
-                </div>
-            </div>
-            <div id="calStep2" hidden>
-                <p style="color: var(--neon-green); font-weight:bold;">Sending HIGH FORWARD Signal (2000us)</p>
-                <p>1. The motor should NOT be spinning.</p>
-                <p>2. Press the "SET" button on your ESC again. A different beep should confirm the forward point.</p>
-                <p>3. Click Next to set the brake position.</p>
-                <div class="modal-btns">
-                    <button onclick="calNext(3)" class="btn-primary">Next (Brake)</button>
-                </div>
-            </div>
-            <div id="calStep3" hidden>
-                <p style="color: var(--neon-red); font-weight:bold;">Sending BRAKE Signal (1000us)</p>
-                <p>1. The motor should NOT be spinning.</p>
-                <p>2. Press the "SET" button on your ESC one last time. A final beep sequence should confirm all settings are saved.</p>
-                <p>3. Click Finish. The ESC is now calibrated.</p>
-                <div class="modal-btns">
-                    <button onclick="calFinish()" class="btn-success">Finish</button>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Custom Confirmation Modal -->
     <div id="customModal" class="modal" hidden>
@@ -406,7 +337,6 @@
         let currentProfile = { steps: [] };
         let pwmMappingPoints = [];
         let manualMode = false;
-        let isCalibrated = false;
         
         // Chart Data
         const maxDataPoints = 100;
@@ -446,7 +376,7 @@
 
             const stateEl = document.getElementById('sysState');
             stateEl.innerText = data.state;
-            stateEl.style.color = (data.state === "EMERGENCY" || data.state === "ERROR") ? "var(--neon-red)" : (data.state === "TUNING" || data.state === "MANUAL" || data.state === "CALIBRATING" ? "var(--neon-yellow)" : "var(--neon-blue)");
+            stateEl.style.color = (data.state === "EMERGENCY" || data.state === "ERROR") ? "var(--neon-red)" : (data.state === "TUNING" || data.state === "MANUAL" ? "var(--neon-yellow)" : "var(--neon-blue)");
             document.getElementById('stepDisplay').innerText = data.step || "-";
             document.getElementById('timeDisplay').innerText = data.timeRem || "0";
             
@@ -582,10 +512,6 @@
 
         function runProfile() {
             const id = document.getElementById('profileSelect').value;
-            if (!isCalibrated) {
-                showConfirm("Warning: ESC not calibrated. Motor behavior may be unpredictable. Continue?").then(ok => { if(ok) doRun(id); });
-                return;
-            }
             doRun(id);
         }
         
@@ -708,7 +634,6 @@
                 document.getElementById('rpmCheck').checked = (data.sys.rpmCheck !== undefined) ? data.sys.rpmCheck : true;
                 document.getElementById('mapSlope').value = data.sys.mapSlope ? data.sys.mapSlope.toFixed(4) : "N/A";
                 document.getElementById('mapStartPWM').value = data.sys.mapStartPWM ? data.sys.mapStartPWM + " us" : "N/A";
-                isCalibrated = data.sys.calibrated || false;
                 document.getElementById('ssid').value = data.wifi.ssid;
                 document.getElementById('hostname').value = data.wifi.hostname || "spincoater";
             } catch (e) { 
@@ -803,52 +728,8 @@
         function showHelp() { document.getElementById('helpModal').hidden = false; }
         function closeHelp() { document.getElementById('helpModal').hidden = true; }
 
-        function showCalHelp() { document.getElementById('calHelpModal').hidden = false; }
-        function closeCalHelp() { document.getElementById('calHelpModal').hidden = true; }
-
         function showProfileHelp() { document.getElementById('profileHelpModal').hidden = false; }
         function closeProfileHelp() { document.getElementById('profileHelpModal').hidden = true; }
-
-        function startCal() {
-            document.getElementById('calModal').hidden = false;
-            document.getElementById('calStep0').hidden = false;
-            document.getElementById('calStep1').hidden = true;
-            document.getElementById('calStep2').hidden = true;
-            document.getElementById('calStep3').hidden = true;
-        }
-        function closeCal() {
-            document.getElementById('calModal').hidden = true;
-            fetch('/stop', { method: 'POST' }); // Ensure safety
-        }
-        async function calNext(step) {
-            if (step === 1) {
-                // Send Neutral signal
-                await fetch('/calibrate', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({throttle: 1500}) });
-                document.getElementById('calStep0').hidden = true;
-                document.getElementById('calStep1').hidden = false;
-            } else if (step === 2) {
-                // Send High Forward signal
-                await fetch('/calibrate', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({throttle: 2000}) });
-                document.getElementById('calStep1').hidden = true;
-                document.getElementById('calStep2').hidden = false;
-            } else if (step === 3) {
-                // Send Brake signal
-                await fetch('/calibrate', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({throttle: 1000}) });
-                document.getElementById('calStep2').hidden = true;
-                document.getElementById('calStep3').hidden = false;
-            }
-        }
-        async function calFinish() {
-            await fetch('/stop', { method: 'POST' });
-            document.getElementById('calModal').hidden = true;
-            
-            // Save calibration flag
-            const data = { sys: { calibrated: true } };
-            await fetch('/settings', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
-            isCalibrated = true;
-            
-            await showAlert("Calibration Sequence Finished.");
-        }
 
         async function startPwmMap() {
             const start = parseInt(document.getElementById('pwmStart').value);
@@ -897,8 +778,6 @@
 
         async function toggleManual() {
             if (!manualMode) {
-                if (!isCalibrated && !await showConfirm("Warning: ESC not calibrated. Continue?")) return;
-                
                 if (await showConfirm("Enable Manual Mode? This stops any running profile.")) {
                     await fetch('/manual', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({enable: true, rpm: 0}) });
                     document.getElementById('manualSlider').value = 0;

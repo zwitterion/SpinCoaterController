@@ -378,17 +378,6 @@ void WebServer::handleApiRequest(WiFiClient& client, String method, String uri, 
         return;
     }
 
-    // 9. API: Calibration
-    if (path == "/calibrate" && method == "POST") {
-        JsonDocument doc;
-        deserializeJson(doc, body);
-        if (doc.containsKey("throttle")) {
-            _engine.setCalibrationThrottle(doc["throttle"]);
-        }
-        client.println("HTTP/1.1 200 OK\r\n\r\n");
-        return;
-    }
-
     // 10. API: PWM Mapping
     if (path == "/startMap" && method == "POST") {
         JsonDocument doc;
@@ -455,7 +444,6 @@ void WebServer::broadcastTelemetry(const TelemetryData& data) {
         case STATE_EMERGENCY_STOP: doc["state"] = "EMERGENCY"; break;
         case STATE_TUNING: doc["state"] = "TUNING"; break;
         case STATE_MANUAL: doc["state"] = "MANUAL"; break;
-        case STATE_CALIBRATING: doc["state"] = "CALIBRATING"; break;
         case STATE_MAPPING: doc["state"] = "MAPPING"; break;
     }
     

@@ -1,7 +1,8 @@
 #include "EEPROMStorage.h"
 
 // Magic number to verify if EEPROM has been initialized before
-const uint32_t EEPROM_MAGIC = 0xCAFEBABE;
+// Updated Magic Number to force refresh due to struct changes
+const uint32_t EEPROM_MAGIC = 0xCAFEBABC; 
 const int ADDR_MAGIC = 0;
 const int ADDR_SETTINGS = sizeof(uint32_t);
 // Start profiles after settings. Leaving 512 bytes for settings/future expansion.
@@ -29,7 +30,7 @@ void EEPROMStorage::wipe() {
     defaults.pid = {0.1f, 0.05f, 0.01f}; // Conservative defaults
     defaults.minRPM = 0;
     defaults.maxRPM = 10000; // Adjust based on motor
-    defaults.escMinMicros = 1000;
+    defaults.escMinMicros = 0;
     defaults.escMaxMicros = 2000;
     defaults.wifi.valid = false;
     memset(defaults.wifi.ssid, 0, 33);

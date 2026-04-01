@@ -2,9 +2,9 @@
 
 ESCController::ESCController(uint8_t pin) : _pin(pin), _esc(pin), _targetRPM(0), 
     _kp(0), _ki(0), _kd(0), _integral(0), _prevError(0), _lastPIDTime(0),
-    _minUs(1500), _maxUs(2000), _filterAlpha(1.0), _windupRange(500), _filteredRPM(0),
-    _tuneState(TUNE_IDLE), _lastThrottle(1500), _controlMode(CONTROL_PID),
-    _mapSlope(0.0f), _mapStartPWM(1500) {
+    _minUs(0), _maxUs(2000), _filterAlpha(1.0), _windupRange(500), _filteredRPM(0),
+    _tuneState(TUNE_IDLE), _lastThrottle(0), _controlMode(CONTROL_PID),
+    _mapSlope(0.0f), _mapStartPWM(0) {
 }
 
 void ESCController::begin() {
@@ -14,7 +14,7 @@ void ESCController::begin() {
 
 void ESCController::setThrottleMicroseconds(int us) {
     // Safety clamp
-    us = constrain(us, 1000, 2000);
+    us = constrain(us, 0, 2000);
     _lastThrottle = us;
     _esc.writeMicroseconds(us);
 }
@@ -30,14 +30,14 @@ void ESCController::setTargetRPM(float rpm) {
         // If starting from idle, reset PID timers to prevent integral windup from stale time
         if (_controlMode == CONTROL_KV) {
             _targetRPM = rpm;
-            int us = 1500;
+            int us = 0;
             
             if (_mapSlope > 0.001f) {
                 // Use Empirical Mapping from PWM tuning process
                 us = _mapStartPWM + (int)(rpm / _mapSlope);
             } else {
                 // If no mapping exists, default to neutral
-                us = 1500;
+                us = 0;
             }
             setThrottleMicroseconds(us);
         } else {
@@ -55,7 +55,7 @@ void ESCController::stopMotor() {
     _targetRPM = 0;
     _integral = 0;
     _prevError = 0;
-    setThrottleMicroseconds(1500);
+    setThrottleMicroseconds(0);
 }
 
 void ESCController::setPID(float kp, float ki, float kd) {
@@ -67,6 +67,7 @@ void ESCController::setPID(float kp, float ki, float kd) {
 void ESCController::setCalibration(int minUs, int maxUs) {
     _minUs = minUs;
     _maxUs = maxUs;
+    _esc.attach(_pin, _minUs, _maxUs); // Propagate limits to hardware wrapper
 }
 
 void ESCController::setFilterAlpha(float alpha) {
