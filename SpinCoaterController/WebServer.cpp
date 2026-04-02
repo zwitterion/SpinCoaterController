@@ -471,6 +471,8 @@ void WebServer::broadcastTelemetry(const TelemetryData& data) {
     doc["step"] = data.currentStepIndex + 1; // 1-based for UI
     doc["timeRem"] = data.stepTimeRemaining;
     doc["total"] = data.stepTotalTime;
+    doc["totalRem"] = data.totalTimeRemaining;
+    doc["totalTime"] = data.totalProfileTime;
     doc["pId"] = data.profileId;
     doc["pulseWidth"] = data.pulseWidth;
     doc["throttlePercent"] = data.throttlePercent;

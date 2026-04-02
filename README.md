@@ -1,6 +1,6 @@
 # Arduino UNO R4 WiFi Spin Coater Controller
 
-![Dashboard Screenshot](screenshot.png?v=1)
+![Dashboard Screenshot](screenshot.png?v=2)
 
 A complete, production-quality firmware for a DIY Spin Coater based on the **Arduino UNO R4 WiFi**. This system provides a modern, responsive Web UI to control a brushless motor with precision RPM feedback, allowing for complex spin coating recipes.
 
@@ -71,9 +71,9 @@ A complete, production-quality firmware for a DIY Spin Coater based on the **Ard
 *   The device will reboot and connect to your network. The LED Matrix will scroll the new IP address. You can now access the controller at **`http://spincoater.local`**.
 
 ### 2. PWM-to-RPM Mapping (Empirical Tuning)
-*   After calibrating the ESC, you must characterize your motor's performance.
+*   Before using the system, you must characterize your motor's performance.
 *   Go to the **RPM Tuning** card.
-*   Set your **Start (us)** (usually 0), **End (us)** (usually 2000), and **Step** size.
+*   Set your **Start (us)** (usually 0), **End (us)** (usually 2000), and **Step** size (100).
 *   Click **Start PWM Mapping**. 
 *   The system will automatically ramp the motor and use **Linear Regression** to calculate a best-fit line (Slope and Intercept).
 *   This step is mandatory for accurate speed control in **Open-Loop (KV)** mode and provides a baseline for PID feed-forward.

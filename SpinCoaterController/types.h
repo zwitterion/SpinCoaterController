@@ -92,6 +92,8 @@ struct TelemetryData {
     int currentStepIndex;
     unsigned long stepTimeRemaining;
     unsigned long stepTotalTime;
+    unsigned long totalTimeRemaining;
+    unsigned long totalProfileTime;
     const char* errorMessage;
     int profileId;
     bool isMapPoint;

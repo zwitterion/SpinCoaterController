@@ -290,9 +290,26 @@ TelemetryData ExecutionEngine::getTelemetry() {
             data.stepTimeRemaining = totalStepTime - elapsed;
         else 
             data.stepTimeRemaining = 0;
+
+        // Calculate Total Profile Times
+        unsigned long totalDur = 0;
+        unsigned long remDur = 0;
+        for (int i = 0; i < _currentProfile.stepCount; i++) {
+            unsigned long stepDur = _currentProfile.steps[i].rampDurationMs + _currentProfile.steps[i].holdDurationMs;
+            totalDur += stepDur;
+            if (i > _currentStepIndex) {
+                remDur += stepDur;
+            } else if (i == _currentStepIndex) {
+                remDur += data.stepTimeRemaining;
+            }
+        }
+        data.totalProfileTime = totalDur;
+        data.totalTimeRemaining = remDur;
     } else {
         data.stepTimeRemaining = 0;
         data.stepTotalTime = 0;
+        data.totalTimeRemaining = 0;
+        data.totalProfileTime = 0;
     }
     
     data.errorMessage = _safetyManager.getLastError();
