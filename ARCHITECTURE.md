@@ -9,7 +9,7 @@ The system is built using a **Modular Object-Oriented** approach. Each hardware 
 
 ### Hardware Abstraction Layer (HAL)
 *   **RPMReader:** Manages the TCRT5000 IR sensor. It uses hardware interrupts (Pin D8/D2) and software debouncing to calculate motor frequency. It includes a timeout mechanism to set RPM to zero when the motor stops.
-*   **R4ESC / ESCController:** Wraps the PWM generation for the Electronic Speed Controller. `ESCController` handles the logic of mapping target RPM to PWM pulse widths (1000us - 2000us) and implements the **PID Control Loop**.
+*   **R4ESC / ESCController:** Wraps the PWM generation for the **BLDC-8015A Direct Drive Controller**. Unlike hobby ESCs, this controller does not require range calibration and treats 0µs as the absolute "off" state. `ESCController` handles the mapping of target RPM to PWM duty cycles and implements the **PID Control Loop**.
 *   **WiFiManager:** Handles the dual-mode WiFi logic (Access Point for configuration, Station for operation). It interacts with the UNO R4 LED Matrix to provide visual status updates (IP addresses, icons). Supports **mDNS** for local hostname resolution (`spincoater.local`).
 
 ### Logic & Execution
@@ -33,7 +33,6 @@ The system operates based on the following states:
 | `MANUAL` | Direct RPM control via the Web UI slider. |
 | `TUNING` | Running the PID Auto-tune (Relay method) algorithm. |
 | `MAPPING` | Automated PWM-to-RPM characterization using linear regression. |
-| `CALIBRATING` | ESC Throttle range calibration mode. |
 | `ERROR / EMERGENCY_STOP` | Critical failure detected; motor cut immediately. |
 
 ## 4. Control Theory
@@ -65,7 +64,7 @@ The system has transitioned from a theoretical KV-based formula to a data-driven
 
 | Function | Pin | Note |
 | :--- | :--- | :--- |
-| ESC Signal | D9 | Servo PWM |
+| Motor Signal | D9 | PWM Control (0-2000us) |
 | RPM Sensor | D8 | Interrupt Pin |
 | Sensor LED | D6 | Power for IR LED |
 | I2C / Matrix | Internal | UNO R4 Matrix |
@@ -73,7 +72,7 @@ The system has transitioned from a theoretical KV-based formula to a data-driven
 ## 7. Storage Mapping (EEPROM)
 
 *   **0x00:** Magic Number (0xCAFEBABE)
-*   **0x04:** `SystemSettings` Struct (PID, WiFi, Calibration)
+*   0x04: `SystemSettings` Struct (PID, WiFi, Mapping Results)
 *   **0x1FE:** RPM Check Enable (bool)
 *   **0x200+:** `SpinProfile` Array (10 slots)
 

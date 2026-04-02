@@ -84,8 +84,9 @@
         <!-- Card 1: Dashboard -->
         <div class="card">
             <h2>Dashboard</h2>
-            <div class="status-grid">
+            <div class="status-grid" style="grid-template-columns: 1fr 1fr 1fr;">
                 <div>Status: <span id="sysState" class="status-val" style="color: var(--neon-blue)">IDLE</span></div>
+                <div>WiFi: <span id="wifiRssi" class="status-val">--</span> <small>dBm</small></div>
                 <div>Conn: <span id="connStatus" class="status-val">...</span></div>
             </div>
             <div class="gauge-container" style="position: relative; width: 220px; height: 220px; margin: 10px auto;">
@@ -116,56 +117,6 @@
             <h2>Live RPM Chart</h2>
             <canvas id="rpmChart" style="width: 100%; height: 200px; background: #111; border-radius: 4px;"></canvas>
         </div>
-
-        <!-- Card 1.6: Manual Mode -->
-        <div class="card">
-            <h2>Manual Control</h2>
-            <div class="row">
-                <button id="btnManual" onclick="toggleManual()" class="btn-warn" style="flex:1">Enable Manual Mode</button>
-            </div>
-            <div id="manualControls" class="hidden" style="margin-top: 15px;">
-                <label>Target RPM: <span id="manualRpmVal" style="color:var(--neon-green)">0</span></label>
-                <input type="range" id="manualSlider" min="0" max="10000" step="100" value="0" oninput="updateManualInput(this.value)" onchange="sendManualRpm(this.value)" style="width:100%; margin: 10px 0;">
-                <div class="row">
-                    <button onclick="setManualPreset(0)" class="btn-primary">0</button>
-                    <button onclick="setManualPreset(1000)" class="btn-primary">1k</button>
-                    <button onclick="setManualPreset(3000)" class="btn-primary">3k</button>
-                    <button onclick="setManualPreset(5000)" class="btn-primary">5k</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Card 1.7: RPM Tuning -->
-        <div class="card">
-            <h2>RPM Tuning</h2>
-            <h3 style="font-size: 0.9em; color: var(--neon-blue); margin-bottom: 10px; text-transform: uppercase;">PWM Range</h3>
-            <div class="row">
-                <div class="col">
-                    <label>Start (us)</label>
-                    <input type="number" id="pwmStart" min="0" max="2000" step="1" value="0">
-                </div>
-                <div class="col">
-                    <label>End (us)</label>
-                    <input type="number" id="pwmEnd" min="0" max="2000" step="1" value="2000">
-                </div>
-                <div class="col">
-                    <label>Step (us)</label>
-                    <input type="number" id="pwmStep" min="1" max="500" step="1" value="20">
-                </div>
-            </div>
-            <button class="btn-primary" onclick="startPwmMap()" style="width: 100%; margin-top: 10px;">Start PWM Mapping</button>
-            <button class="btn-success" onclick="downloadMapCsv()" style="width: 100%; margin-top: 10px;">Download CSV</button>
-
-            <div id="mappingTableContainer" class="hidden" style="margin-top: 15px; max-height: 150px; overflow-y: auto; border-top: 1px solid var(--border-color);">
-                <table>
-                    <thead>
-                        <tr><th>PWM (us)</th><th>RPM</th></tr>
-                    </thead>
-                    <tbody id="mappingTableBody"></tbody>
-                </table>
-            </div>
-        </div>
-
         <!-- Card 2: Profile Editor -->
         <div class="card">
             <h2>Profile Editor <button onclick="showProfileHelp()" style="float:right; padding: 2px 8px; font-size: 0.7em; background: transparent; border: 1px solid var(--neon-blue); color: var(--neon-blue); cursor: pointer;">?</button></h2>
@@ -202,6 +153,57 @@
             </div>
         </div>
 
+        <!-- Card 2.6: Manual Mode -->
+        <div class="card">
+            <h2>Manual Control</h2>
+            <div class="row">
+                <button id="btnManual" onclick="toggleManual()" class="btn-warn" style="flex:1">Enable Manual Mode</button>
+            </div>
+            <div id="manualControls" class="hidden" style="margin-top: 15px;">
+                <label>Target RPM: <span id="manualRpmVal" style="color:var(--neon-green)">0</span></label>
+                <input type="range" id="manualSlider" min="0" max="10000" step="100" value="0" oninput="updateManualInput(this.value)" onchange="sendManualRpm(this.value)" style="width:100%; margin: 10px 0;">
+                <div class="row">
+                    <button onclick="setManualPreset(0)" class="btn-primary">0</button>
+                    <button onclick="setManualPreset(1000)" class="btn-primary">1k</button>
+                    <button onclick="setManualPreset(3000)" class="btn-primary">3k</button>
+                    <button onclick="setManualPreset(5000)" class="btn-primary">5k</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 2.7: RPM Tuning -->
+        <div class="card">
+            <h2>RPM Tuning</h2>
+            <h3 style="font-size: 0.9em; color: var(--neon-blue); margin-bottom: 10px; text-transform: uppercase;">PWM Range</h3>
+            <div class="row">
+                <div class="col">
+                    <label>Start (us)</label>
+                    <input type="number" id="pwmStart" min="0" max="2000" step="1" value="0">
+                </div>
+                <div class="col">
+                    <label>End (us)</label>
+                    <input type="number" id="pwmEnd" min="0" max="2000" step="1" value="2000">
+                </div>
+                <div class="col">
+                    <label>Step (us)</label>
+                    <input type="number" id="pwmStep" min="1" max="500" step="1" value="20">
+                </div>
+            </div>
+            <button class="btn-primary" onclick="startPwmMap()" style="width: 100%; margin-top: 10px;">Start PWM Mapping</button>
+            <button class="btn-success" onclick="downloadMapCsv()" style="width: 100%; margin-top: 10px;">Download CSV</button>
+
+            <div id="mappingTableContainer" class="hidden" style="margin-top: 15px; max-height: 150px; overflow-y: auto; border-top: 1px solid var(--border-color);">
+                <table>
+                    <thead>
+                        <tr><th>PWM (us)</th><th>RPM</th></tr>
+                    </thead>
+                    <tbody id="mappingTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+       
+
         <!-- Card 3: PID Settings -->
         <div class="card">
             <h2>PID Controller <button onclick="showHelp()" style="float:right; padding: 2px 8px; font-size: 0.7em; background: transparent; border: 1px solid var(--neon-blue); color: var(--neon-blue); cursor: pointer;">?</button></h2>
@@ -221,9 +223,26 @@
         <!-- Card 4: WiFi Settings -->
         <div class="card">
             <h2>WiFi Configuration</h2>
-            <label>SSID</label><input type="text" id="ssid">
-            <label>Password</label><input type="password" id="pass">
-            <label>Hostname (.local)</label><input type="text" id="hostname" placeholder="spincoater">
+            <div class="row" style="align-items: flex-end;">
+                <div class="col">
+                    <label>SSID</label>
+                    <input type="text" id="ssid" style="margin-bottom: 0;">
+                </div>
+                <button onclick="scanWifi(event)" class="btn-primary" style="height: 38px; width: 80px; padding: 0;">Scan</button>
+            </div>
+            <div id="scanResultContainer" class="hidden" style="margin-top: 10px;">
+                <label>Detected Networks (Strongest first)</label>
+                <select id="scanSelect" onchange="document.getElementById('ssid').value = this.value"></select>
+            </div>
+            <div style="margin-top: 10px;">
+                <label>Password</label>
+                <input type="password" id="pass" style="margin-bottom: 5px;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px; background: #2a2a2a; padding: 8px; border-radius: 4px; border: 1px solid #444;">
+                    <input type="checkbox" id="showPass" onclick="togglePass()" style="width: auto; margin: 0; cursor: pointer;">
+                    <label for="showPass" style="margin: 0; cursor: pointer; color: #fff;">Show Password</label>
+                </div>
+                <label>Hostname (.local)</label><input type="text" id="hostname" placeholder="spincoater">
+            </div>
             <button onclick="saveWifi()" class="btn-primary" style="width: 100%; margin-top: 10px;">Save WiFi</button>
         </div>
 
@@ -366,6 +385,15 @@
             targetRpmElement.innerText = Math.round(data.target);
             if (data.pulseWidth) {
                 targetRpmElement.parentElement.title = `Pulse Width: ${data.pulseWidth}µs`;
+            }
+
+            if (data.rssi !== undefined) {
+                const rssiEl = document.getElementById('wifiRssi');
+                rssiEl.innerText = data.rssi ? data.rssi : "--";
+                if (data.rssi === 0) rssiEl.style.color = 'inherit';
+                else if (data.rssi > -65) rssiEl.style.color = 'var(--neon-green)';
+                else if (data.rssi > -80) rssiEl.style.color = 'var(--neon-yellow)';
+                else rssiEl.style.color = 'var(--neon-red)';
             }
             
             // Capture mapping points if sent by server
@@ -690,6 +718,33 @@
             }
         }
 
+        async function scanWifi(event) {
+            const btn = event.target;
+            const originalText = btn.innerText;
+            btn.innerText = "...";
+            btn.disabled = true;
+            
+            try {
+                const res = await fetch('/scan');
+                if (res.status === 403) {
+                    showAlert("Cannot scan while a process is running.");
+                    return;
+                }
+                const networks = await res.json();
+                const sel = document.getElementById('scanSelect');
+                sel.innerHTML = '<option value="" selected disabled>Select a network...</option>';
+                networks.sort((a, b) => b.rssi - a.rssi); // Sort strongest first
+                networks.forEach(n => {
+                    const opt = document.createElement('option');
+                    opt.value = n.ssid;
+                    opt.innerText = `${n.ssid} (${n.rssi} dBm)`;
+                    sel.appendChild(opt);
+                });
+                document.getElementById('scanResultContainer').classList.remove('hidden');
+            } catch (e) { showAlert("Scan failed."); }
+            finally { btn.innerText = originalText; btn.disabled = false; }
+        }
+
         async function factoryReset() {
             if (await showConfirm("Are you sure? This will erase all settings and profiles.")) {
                 await fetch('/reset', { method: 'POST' });
@@ -801,6 +856,11 @@
             document.getElementById('manualSlider').value = val;
             updateManualInput(val);
             sendManualRpm(val);
+        }
+
+        function togglePass() {
+            const x = document.getElementById("pass");
+            x.type = x.type === "password" ? "text" : "password";
         }
 
         // Init

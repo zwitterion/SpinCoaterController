@@ -27,13 +27,12 @@ A complete, production-quality firmware for a DIY Spin Coater based on the **Ard
     *   **Stall Detection:** Stops motor if no RPM is detected while powered.
     *   **Overspeed Protection:** Emergency stop if RPM exceeds target by 15%.
     *   **Absolute Max RPM:** User-configurable hard limit.
-    *   **ESC Calibration Wizard:** Guided process to synchronize ESC throttle range.
 
 ## 🛠️ Hardware Required
 
 1.  **Microcontroller:** Arduino UNO R4 WiFi.
 2.  **Motor:** Brushless DC Motor (e.g., DYS D2830 850KV).
-3.  **ESC:** Electronic Speed Controller (e.g., Spektrum Avian 30A or generic BLHeli).
+3.  **Controller:** BLDC-8015A Direct Drive Motor Controller.
 4.  **Sensor:** TCRT5000 Reflective IR Optical Sensor (for RPM feedback).
 5.  **Power Supply:** Suitable DC supply for your motor/ESC (e.g., 12V 5A).
 6.  **Marker:** White/Silver paint or reflective tape on the motor bell for the sensor.
@@ -71,15 +70,10 @@ A complete, production-quality firmware for a DIY Spin Coater based on the **Ard
 *   Enter your local WiFi credentials in the **Settings** card and click **Save WiFi**.
 *   The device will reboot and connect to your network. The LED Matrix will scroll the new IP address. You can now access the controller at **`http://spincoater.local`**.
 
-### 2. ESC Calibration (Crucial)
-*   Before the first run, go to the **System Options** card on the dashboard.
-*   Click **Calibrate ESC**.
-*   Follow the on-screen wizard instructions carefully (requires toggling ESC power).
-
-### 3. PWM-to-RPM Mapping (Empirical Tuning)
+### 2. PWM-to-RPM Mapping (Empirical Tuning)
 *   After calibrating the ESC, you must characterize your motor's performance.
 *   Go to the **RPM Tuning** card.
-*   Set your **Start (us)** (usually 1500), **End (us)** (usually 2000), and **Step** size.
+*   Set your **Start (us)** (usually 0), **End (us)** (usually 2000), and **Step** size.
 *   Click **Start PWM Mapping**. 
 *   The system will automatically ramp the motor and use **Linear Regression** to calculate a best-fit line (Slope and Intercept).
 *   This step is mandatory for accurate speed control in **Open-Loop (KV)** mode and provides a baseline for PID feed-forward.
@@ -132,4 +126,3 @@ You can use this file as a template or reference for generating your own complex
 ---
 
 *This project was co-created with Google Gemini.*
-

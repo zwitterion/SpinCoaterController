@@ -403,6 +403,25 @@ void WebServer::handleApiRequest(WiFiClient& client, String method, String uri, 
         return;
     }
 
+    // 11. API: WiFi Scan
+    if (path == "/scan" && method == "GET") {
+        // Safety: only scan when motor is not running to avoid blocking control loop
+        if (_engine.getTelemetry().state != STATE_IDLE) {
+            client.println("HTTP/1.1 403 Forbidden\r\n\r\n");
+            return;
+        }
+        int numSsid = WiFi.scanNetworks();
+        JsonDocument doc;
+        JsonArray networks = doc.to<JsonArray>();
+        for (int i = 0; i < numSsid; i++) {
+            JsonObject net = networks.add<JsonObject>();
+            net["ssid"] = WiFi.SSID(i);
+            net["rssi"] = WiFi.RSSI(i);
+        }
+        sendJsonResponse(client, 200, doc);
+        return;
+    }
+
     // 404
     client.println("HTTP/1.1 404 Not Found\r\n\r\n");
 }
@@ -454,6 +473,7 @@ void WebServer::broadcastTelemetry(const TelemetryData& data) {
     doc["pId"] = data.profileId;
     doc["pulseWidth"] = data.pulseWidth;
     doc["throttlePercent"] = data.throttlePercent;
+    doc["rssi"] = (WiFi.status() == WL_CONNECTED) ? WiFi.RSSI() : 0;
 
     // If we are in mapping mode, we send the current PWM/RPM as a mapPoint 
     // whenever a stabilization period (5s) completes.
