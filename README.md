@@ -31,23 +31,25 @@ A complete, production-quality firmware for a DIY Spin Coater based on the **Ard
 ## 🛠️ Hardware Required
 
 1.  **Microcontroller:** Arduino UNO R4 WiFi.
-2.  **Motor:** Brushless DC Motor (e.g., DYS D2830 850KV).
+2.  **Motor:** Brushless DC Motor (e.g., BLDC Motor NEMA17 42BLF02).
 3.  **Controller:** BLDC-8015A Direct Drive Motor Controller.
-4.  **Sensor:** TCRT5000 Reflective IR Optical Sensor (for RPM feedback).
-5.  **Power Supply:** Suitable DC supply for your motor/ESC (e.g., 12V 5A).
-6.  **Marker:** White/Silver paint or reflective tape on the motor bell for the sensor.
+4.  **Sensor:** US1881 Hall Effect Sensor (for RPM feedback).
+5.  **Power Supply:** Suitable DC supply for your motor/BLDC-8015A (e.g., 24V 5A) and Arduino Pwer Supply (Note: USB Power will not be enough to produce the correct PWM signal for the BLDC-8015A.)
+6.  **Resistor:** 10k ohms resistor (pullup resistor for the sensor, coonected between +5V and sensor OUT).
+
+
 
 ## 🔌 Wiring
 
 | Component | Pin Name | Arduino Pin | Notes |
 | :--- | :--- | :--- | :--- |
-| **ESC** | Signal (PWM) | **D9** | Servo-style PWM |
-| **ESC** | Ground | **GND** | **Common Ground required** |
+| **BLDC-8015A** | Signal (PWM) | **D9** | Servo-style PWM |
+| **BLDC-8015A** | Ground | **GND** | **Common Ground required** |
 | **Sensor** | Digital Out | **D8** | Interrupt Pin |
 | **Sensor** | VCC | **5V** | Or 3.3V depending on module |
 | **Sensor** | GND | **GND** | |
 
-> **⚠️ Important:** Ensure the Arduino and the ESC share a common ground connection, or the signal will not work.
+> **⚠️ Important:** Ensure the Arduino and the BLDC-8015A share a common ground connection, or the signal will not work.
 
 ## 📦 Installation
 
@@ -113,7 +115,7 @@ The values generated during **PWM-to-RPM Mapping** provide a baseline for your h
 *   **Calculated Slope (RPM/µs):** Represents motor efficiency. A **decrease** in slope over time suggests increased mechanical resistance (e.g., debris in the spindle), bearing degradation, or a weakening power supply/battery.
 *   **Inferred Start PWM (µs):** Represents the "stiction" point.
     *   **Increasing values:** Indicate that the motor requires more power to overcome static friction, often a sign of old grease or tight bearings.
-    *   **Values significantly far from 1500µs:** Suggest the ESC's internal neutral point has drifted and a fresh **ESC Calibration** is recommended.
+    *   **Values significantly far from 1500µs:** Suggest the BLDC-8015A's internal neutral point has drifted and a fresh **BLDC-8015A Calibration** is recommended.
 
 ## 🤖 AI-Assisted Development
 
