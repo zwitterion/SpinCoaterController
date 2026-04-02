@@ -91,6 +91,7 @@ struct TelemetryData {
     int pulseWidth;
     int currentStepIndex;
     unsigned long stepTimeRemaining;
+    unsigned long stepTotalTime;
     const char* errorMessage;
     int profileId;
     bool isMapPoint;

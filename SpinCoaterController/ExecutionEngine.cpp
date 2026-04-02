@@ -285,12 +285,14 @@ TelemetryData ExecutionEngine::getTelemetry() {
         unsigned long elapsed = millis() - _stepStartTime;
         unsigned long totalStepTime = _currentProfile.steps[_currentStepIndex].rampDurationMs + 
                                       _currentProfile.steps[_currentStepIndex].holdDurationMs;
+        data.stepTotalTime = totalStepTime;
         if (totalStepTime > elapsed)
             data.stepTimeRemaining = totalStepTime - elapsed;
         else 
             data.stepTimeRemaining = 0;
     } else {
         data.stepTimeRemaining = 0;
+        data.stepTotalTime = 0;
     }
     
     data.errorMessage = _safetyManager.getLastError();
