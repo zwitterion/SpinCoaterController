@@ -356,9 +356,10 @@
         let currentProfile = { steps: [] };
         let pwmMappingPoints = [];
         let manualMode = false;
+        let lastState = "IDLE";
         
         // Chart Data
-        const maxDataPoints = 100;
+        const MAX_CHART_POINTS = 1000;
         let chartData = { labels: [], rpm: [], target: [] };
 
         function connect() {
@@ -380,6 +381,14 @@
         }
 
         function updateDashboard(data) {
+            // Clear chart data and markers when a new process starts
+            if (data.state !== lastState && (data.state === "RUNNING" || data.state === "MANUAL" || data.state === "MAPPING")) {
+                chartData.rpm = [];
+                chartData.target = [];
+                pwmMappingPoints = [];
+            }
+            lastState = data.state;
+
             document.getElementById('rpmDisplay').innerText = Math.round(data.rpm);
             const targetRpmElement = document.getElementById('targetDisplay');
             targetRpmElement.innerText = Math.round(data.target);
@@ -439,7 +448,10 @@
             }
             document.getElementById('manualSlider').max = maxRpmVal;
             
-            updateChart(data.rpm, data.target);
+            const activeStates = ["RUNNING", "PAUSED", "STOPPING", "TUNING", "MANUAL", "MAPPING"];
+            if (activeStates.includes(data.state)) {
+                updateChart(data.rpm, data.target);
+            }
         }
 
         function drawGauge(current, max) {
@@ -485,9 +497,25 @@
             // Add Data
             chartData.rpm.push(rpm);
             chartData.target.push(target);
-            if (chartData.rpm.length > maxDataPoints) {
-                chartData.rpm.shift();
-                chartData.target.shift();
+            
+            // If we exceed the buffer limit, downsample by averaging adjacent pairs.
+            // This compresses the entire history to make room for new data while keeping the full profile visible.
+            if (chartData.rpm.length > MAX_CHART_POINTS) {
+                let newRpm = [];
+                let newTarget = [];
+                for (let i = 0; i < chartData.rpm.length; i += 2) {
+                    if (i + 1 < chartData.rpm.length) {
+                        newRpm.push((chartData.rpm[i] + chartData.rpm[i + 1]) / 2);
+                        newTarget.push((chartData.target[i] + chartData.target[i + 1]) / 2);
+                    } else {
+                        newRpm.push(chartData.rpm[i]);
+                        newTarget.push(chartData.target[i]);
+                    }
+                }
+                chartData.rpm = newRpm;
+                chartData.target = newTarget;
+                // Re-align existing mapping markers to the new compressed indices
+                pwmMappingPoints.forEach(pt => pt.x = pt.x / 2);
             }
             
             // Clear
@@ -506,7 +534,7 @@
             // Helper to map value to Y
             const maxVal = Math.max(Math.max(...chartData.rpm), Math.max(...chartData.target), 1000) * 1.1;
             const mapY = (val) => height - ((val / maxVal) * height);
-            const stepX = width / (maxDataPoints - 1);
+            const stepX = width / (chartData.rpm.length > 1 ? chartData.rpm.length - 1 : 1);
             
             // Draw Line Helper
             const drawLine = (data, color) => {
