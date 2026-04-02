@@ -48,6 +48,9 @@ A complete, production-quality firmware for a DIY Spin Coater based on the **Ard
 | **Sensor** | Digital Out | **D8** | Interrupt Pin |
 | **Sensor** | VCC | **5V** | Or 3.3V depending on module |
 | **Sensor** | GND | **GND** | |
+| **10K Resistor** | Digital Out | **D8** | Pullup resistor for hall sensor connects D8 to VCC|
+
+
 
 > **⚠️ Important:** Ensure the Arduino and the BLDC-8015A share a common ground connection, or the signal will not work.
 
