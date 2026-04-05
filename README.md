@@ -46,6 +46,8 @@ Please see printables.com  project ([Printables](https://www.printables.com/mode
 9.  **Buck Converter** Converts 24 V to 12 V for powering the Arduino. Powering via USB provides a lower voltage (4.7V) than powering via the Vin pin. This is not enough for the controller. [Amazon Link](https://amzn.to/3NLN8zH)
 10. **M2,M3,M4 Screws** A set with multiple size/lengths. [Amazon Link](https://amzn.to/4m8HzI2)
 11. **M2, M3, M4 Threaded Inserts** Kadrick brand or another brand with same outer diameters. [Amazon Link](https://amzn.to/4m8H00R)
+12. **Magnets N52-D3x1mm** - Mini Neodymium Disc Magnets [Amazon Link](https://amzn.to/4tlFivq)
+13. **5mm Flange Coupling Connector** - Connects motor to platci coupler [Amazon Link](https://amzn.to/47KGO22)
 
 #### **Note**: Clicking these links helps me help others. As an Amazon Associate I earn from qualifying purchases, which is a fancy way of saying Amazon throws a few nickels my way if you buy something. I don't keep the change—it all goes to Doctors Without Borders to support their medical teams worldwide.
 
