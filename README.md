@@ -28,16 +28,26 @@ A complete, production-quality firmware for a DIY Spin Coater based on the **Ard
     *   **Overspeed Protection:** Emergency stop if RPM exceeds target by 15%.
     *   **Absolute Max RPM:** User-configurable hard limit.
 
+
+## 🧩3D Printed Enclosure
+
+Please see printables.com  project ([Printables](https://www.printables.com/model/1666277-spin-coater)).
+
 ## 🛠️ Hardware Required
 
 1.  **Microcontroller:** Arduino UNO R4 WiFi.
-2.  **Motor:** Brushless DC Motor (e.g., BLDC Motor NEMA17 42BLF02).
-3.  **Controller:** BLDC-8015A Direct Drive Motor Controller.
-4.  **Sensor:** US1881 Hall Effect Sensor (for RPM feedback).
-5.  **Power Supply:** Suitable DC supply for your motor/BLDC-8015A (e.g., 24V 5A) and Arduino Pwer Supply (Note: USB Power will not be enough to produce the correct PWM signal for the BLDC-8015A.)
+2.  **Motor:** Brushless DC Motor (e.g., BLDC Motor NEMA17 42BLF02). [ebay Link](https://www.ebay.com/itm/305752707379)
+3.  **Controller:** BLDC-8015A Direct Drive Motor Controller. [ebay Link](https://www.ebay.com/itm/305752707379)
+4.  **Sensor:** US1881 Hall Effect Sensor (for RPM feedback). [Amazon Link](https://amzn.to/4meDdPM)
+5.  **Power Supply:** 24V DC supply for your motor/BLDC-8015A [Amazon Link](https://amzn.to/3PTm8ia)
 6.  **Resistor:** 10k ohms resistor (pullup resistor for the sensor, coonected between +5V and sensor OUT).
+7.  **Acrylic Disc:** Acrylic disc 1/8 thick, 4 inches in diameter for lid. [Amazon Link](https://amzn.to/3PTm8ia)
+8.  **Female Barrel connector**  [Amazon Link](https://amzn.to/4sPiO6f)
+9.  **Buck Converter** Converts 24 V to 12 V for powering the Arduino. Powering via USB provides a lower voltage (4.7V) than powering via the Vin pin. This is not enough for the controller. [Amazon Link](https://amzn.to/3NLN8zH)
+10. **M2,M3,M4 Screws** A set with multiple size/lengths. [Amazon Link](https://amzn.to/4m8HzI2)
+11. **M2, M3, M4 Threaded Inserts** Kadrick brand or another brand with same outer diameters. [Amazon Link](https://amzn.to/4m8H00R)
 
-
+#### **Note**: Clicking these links helps me help others. As an Amazon Associate I earn from qualifying purchases, which is a fancy way of saying Amazon throws a few nickels my way if you buy something. I don't keep the change—it all goes to Doctors Without Borders to support their medical teams worldwide.
 
 ## 🔌 Wiring
 
