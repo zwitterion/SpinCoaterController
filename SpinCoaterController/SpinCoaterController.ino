@@ -115,15 +115,25 @@ void setup() {
 // MAIN LOOP
 // ============================================================
 void loop() {
-    // Update Button states
-    TelemetryData tel = engine.getTelemetry();
-    tel.btnStartPressed = buttonHandler.isStartPressed();
-    tel.btnStopPressed = buttonHandler.isStopPressed();
+    bool startPressed = buttonHandler.isStartPressed();
+    bool stopPressed = buttonHandler.isStopPressed();
+    
+    // Sync button states with engine for "Wait for Button" steps
+    engine.setButtonStates(startPressed, stopPressed);
 
-    // Physical button logic: Stop the motor/profile if Stop button is pressed
-    if (tel.btnStopPressed) {
+    // 1. Physical button logic
+    if (stopPressed) {
         engine.stop();
     }
+    
+    // If IDLE and Start is pressed, run the profile currently set in telemetry
+    // (The UI sends the selected profile ID which is stored in engine._currentProfile.id)
+    static bool lastStart = false;
+    if (startPressed && !lastStart && engine.getTelemetry().state == STATE_IDLE) {
+        uint8_t currentId = engine.getTelemetry().profileId;
+        if (currentId != 255) engine.runProfile(currentId);
+    }
+    lastStart = startPressed;
 
     // 1. Critical Control Loop
     engine.update();
@@ -139,6 +149,9 @@ void loop() {
     static unsigned long lastTelemetry = 0;
     if (millis() - lastTelemetry > 100) {
         lastTelemetry = millis();
+        TelemetryData tel = engine.getTelemetry();
+        tel.btnStartPressed = startPressed;
+        tel.btnStopPressed = stopPressed;
         webServer.broadcastTelemetry(tel);
     }
 }

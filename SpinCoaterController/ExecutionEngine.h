@@ -22,6 +22,9 @@ public:
     void resume();
     void startTuning();
     void startManual();
+    
+    // Pass button states from main loop
+    void setButtonStates(bool startPressed, bool stopPressed);
     void startPwmMapping(int start, int end, int step);
     void setManualRPM(float rpm);
     
@@ -50,6 +53,10 @@ private:
     int _lastRecordedPwm;
     int _mappingStep;
     bool _isMapPointRecorded;
+    
+    bool _btnStartPressed;
+    bool _btnStopPressed;
+    bool _lastBtnStart;
 
     // Regression Variables
     double _sumX;

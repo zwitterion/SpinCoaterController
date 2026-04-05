@@ -22,7 +22,8 @@ enum SystemState {
 enum RampType {
     RAMP_LINEAR = 0,
     RAMP_EXPONENTIAL = 1,
-    RAMP_S_CURVE = 2
+    RAMP_S_CURVE = 2,
+    RAMP_WAIT_BUTTON = 3
 };
 
 enum ControlMode {

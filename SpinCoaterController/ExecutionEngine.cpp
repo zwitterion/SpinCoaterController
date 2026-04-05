@@ -5,7 +5,8 @@ ExecutionEngine::ExecutionEngine(RPMReader& rpm, ESCController& esc, SafetyManag
       _state(STATE_IDLE), _currentStepIndex(0), _stepStartTime(0), _pauseStartTime(0), 
       _currentTargetRPM(0), _manualTargetRPM(0), _mappingPulseWidth(0), _mappingEndPulse(0), 
       _lastRecordedPwm(0), _mappingStep(20), _isMapPointRecorded(false),
-      _sumX(0), _sumY(0), _sumXY(0), _sumX2(0), _mappingCount(0) {
+      _sumX(0), _sumY(0), _sumXY(0), _sumX2(0), _mappingCount(0),
+      _btnStartPressed(false), _btnStopPressed(false), _lastBtnStart(false) {
     // Mapping variables initialized in member initializer list above
 }
 
@@ -39,6 +40,19 @@ void ExecutionEngine::update() {
             
             SpinStep& step = _currentProfile.steps[_currentStepIndex];
             
+            if (step.rampType == RAMP_WAIT_BUTTON) {
+                _currentTargetRPM = 0;
+                _escController.setTargetRPM(0);
+                _escController.update(currentRPM);
+                
+                // Detect a new press (rising edge of the pressed state)
+                if (_btnStartPressed && !_lastBtnStart) {
+                    advanceStep();
+                }
+                _lastBtnStart = _btnStartPressed;
+                return;
+            }
+
             if (elapsed < step.rampDurationMs) {
                 // Ramping
                 _currentTargetRPM = calculateRampRPM(step, elapsed);
@@ -216,16 +230,24 @@ void ExecutionEngine::startPwmMapping(int start, int end, int step) {
     _stepStartTime = millis();
 }
 
-void ExecutionEngine::startManual() {
-    _state = STATE_MANUAL;
-    _manualTargetRPM = 0;
-    _escController.setTargetRPM(0);
-}
 
 void ExecutionEngine::setManualRPM(float rpm) {
     if (_state == STATE_MANUAL) {
         _manualTargetRPM = rpm;
     }
+}
+
+void ExecutionEngine::setButtonStates(bool startPressed, bool stopPressed) {
+    _btnStartPressed = startPressed;
+    _btnStopPressed = stopPressed;
+    // Note: _lastBtnStart is handled inside update() to ensure 
+    // edge detection happens relative to the state machine cycle.
+}
+
+void ExecutionEngine::startManual() {
+    _state = STATE_MANUAL;
+    _manualTargetRPM = 0;
+    _escController.setTargetRPM(0);
 }
 
 void ExecutionEngine::advanceStep() {
