@@ -40,7 +40,7 @@ void R4ESC::writeMicroseconds(int us) {
         escPwm.pulse_perc(0);
         return;
     }
-    float duty = ((float)us / (_maxUs - _minUs)) * 100.0f;
+    float duty = ((float)(us - _minUs) / (_maxUs - _minUs)) * 100.0f;
 	escPwm.pulse_perc(duty);
 
     // Serial.print("R4ESC: Set pulse width = ");

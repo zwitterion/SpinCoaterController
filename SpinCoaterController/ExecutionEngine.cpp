@@ -269,6 +269,8 @@ TelemetryData ExecutionEngine::getTelemetry() {
     data.targetRPM = _currentTargetRPM;
     data.throttlePercent = _escController.getThrottlePercent();
     data.currentStepIndex = _currentStepIndex;
+    data.btnStartPressed = false;
+    data.btnStopPressed = false;
     
     // Use the locked mapping PWM if this is a recorded point, 
     // otherwise use live throttle

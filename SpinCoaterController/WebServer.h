@@ -24,6 +24,15 @@ private:
     WiFiServer _server;
     WiFiClient _wsClient; // Single client support for simplicity, or array for multiple
     bool _wsConnected;
+
+    // HTTP State Machine Members
+    WiFiClient _httpClient;
+    int _httpState;
+    String _headerBuf;
+    String _bodyBuf;
+    int _contentLength;
+    String _method;
+    String _uri;
     
     SimpleWebSocket _wsHandler;
     

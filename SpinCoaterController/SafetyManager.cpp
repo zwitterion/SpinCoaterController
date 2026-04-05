@@ -39,7 +39,7 @@ bool SafetyManager::check(float currentRPM, float targetRPM, float throttleOutpu
 
     // 2. Overspeed Protection
     // If RPM exceeds target by >15% (and target is not zero/low)
-    if (targetRPM > 500 && currentRPM > (targetRPM * 2.15)) {  // 1.15
+    if (targetRPM > 500 && currentRPM > (targetRPM * 1.15)) { 
         // Dsiplay the actual RPM and target for debugging
         Serial.print("Overspeed: Current RPM = ");Serial.print(currentRPM);
         Serial.print(", Target RPM = ");Serial.println(targetRPM);

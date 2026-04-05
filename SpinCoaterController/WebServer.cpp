@@ -7,7 +7,7 @@ extern ESCController escController;
 extern bool g_rpmCheckEnabled;
 
 WebServer::WebServer(int port, ProfileManager& pm, ExecutionEngine& engine, EEPROMStorage& storage, WiFiManager& wifi)
-    : _server(port), _pm(pm), _engine(engine), _storage(storage), _wifi(wifi), _wsConnected(false) {
+    : _server(port), _pm(pm), _engine(engine), _storage(storage), _wifi(wifi), _wsConnected(false), _httpState(0), _contentLength(0) {
 }
 
 void WebServer::begin() {
@@ -15,83 +15,91 @@ void WebServer::begin() {
 }
 
 void WebServer::update() {
-    // 1. Handle New Clients
-    WiFiClient newClient = _server.available();
-    if (newClient) {
-        if (newClient.connected()) {
-            // Reduced wait to keep motor loop responsive
-            unsigned long startWait = millis();
-            while (newClient.connected() && !newClient.available() && millis() - startWait < 100) {
-                yield(); 
-            }
+    // 1. Check for new connections if not currently processing a request
+    if (!_httpClient.connected()) {
+        _httpClient = _server.available();
+        if (_httpClient) {
+            _httpState = 0; // State 0: Reading Headers
+            _headerBuf = "";
+            _bodyBuf = "";
+            _contentLength = 0;
+        }
+    }
 
-            // Read Request Line
-            String reqLine = newClient.readStringUntil('\r');
-            newClient.read(); // consume \n
-            
-            // Read Headers
-            String headers = "";
-            unsigned long timeout = millis();
-            while (newClient.connected() && millis() - timeout < 2000) {
-                if (newClient.available()) {
-                    String line = newClient.readStringUntil('\n');
-                    if (line.endsWith("\r")) line.remove(line.length() - 1);
-                    if (line.length() == 0) break; // End of headers
-                    headers += line + "\n";
-                    timeout = millis(); // Reset timeout on data
+    // 2. Process active HTTP connection
+    if (_httpClient.connected()) {
+        // Non-blocking: only read if data is actually waiting in the buffer
+        while (_httpClient.available()) {
+            if (_httpState == 0) { // State 0: Accumulating Headers
+                char c = _httpClient.read();
+                _headerBuf += c;
+
+                // Look for end of headers (\r\n\r\n)
+                if (_headerBuf.endsWith("\r\n\r\n")) {
+                    // Check for WebSocket Upgrade
+                    if (_wsHandler.isUpgradeRequest(_headerBuf)) {
+                        Serial.println("WS: Upgrade Request Detected");
+                        if (_wsHandler.handleHandshake(_httpClient, _headerBuf)) {
+                            Serial.println("WS: Handshake Success");
+                            if (_wsConnected && _wsClient.connected()) _wsClient.stop();
+                            _wsClient = _httpClient;
+                            _wsConnected = true;
+                            // Handshake complete, clear HTTP client
+                            _httpClient = WiFiClient();
+                        } else {
+                            Serial.println("WS: Handshake Failed");
+                            _httpClient.stop();
+                        }
+                        return; 
+                    }
+
+                    // Parse Request Line (Method and URI)
+                    int firstSpace = _headerBuf.indexOf(' ');
+                    int secondSpace = _headerBuf.indexOf(' ', firstSpace + 1);
+                    if (firstSpace > 0 && secondSpace > firstSpace) {
+                        _method = _headerBuf.substring(0, firstSpace);
+                        _uri = _headerBuf.substring(firstSpace + 1, secondSpace);
+                    }
+
+                    // Parse Content-Length for POST/PUT bodies
+                    int clIndex = _headerBuf.indexOf("Content-Length: ");
+                    if (clIndex != -1) {
+                        int clEnd = _headerBuf.indexOf("\r\n", clIndex);
+                        _contentLength = _headerBuf.substring(clIndex + 16, clEnd).toInt();
+                    }
+
+                    if (_contentLength > 0) {
+                        _httpState = 1; // Transition to state 1: Reading Body
+                    } else {
+                        handleApiRequest(_httpClient, _method, _uri, "");
+                        _httpClient.stop();
+                        return;
+                    }
                 }
             }
-            
-            // Check for WebSocket Upgrade
-            if (_wsHandler.isUpgradeRequest(headers)) {
-                Serial.println("WS: Upgrade Request Detected");
-                if (_wsHandler.handleHandshake(newClient, headers)) {
-                    Serial.println("WS: Handshake Success");
-                    // Close existing if any (simple single-client support)
-                    if (_wsConnected && _wsClient.connected()) _wsClient.stop();
-                    
-                    _wsClient = newClient;
-                    _wsConnected = true;
-                } else {
-                    Serial.println("WS: Handshake Failed");
-                    newClient.stop();
-                }
-            } else {
-                // Handle HTTP Request
-                int firstSpace = reqLine.indexOf(' ');
-                int secondSpace = reqLine.lastIndexOf(' ');
+            else if (_httpState == 1) { // State 1: Accumulating Body
+                _bodyBuf += (char)_httpClient.read();
                 
-                if (firstSpace > 0 && secondSpace > firstSpace) {
-                    String method = reqLine.substring(0, firstSpace);
-                    String uri = reqLine.substring(firstSpace + 1, secondSpace);
-                    
-                    // Parse Content-Length for Body
-                    int contentLength = 0;
-                    if (method == "POST" || method == "PUT") {
-                        int clIndex = headers.indexOf("Content-Length: ");
-                        if (clIndex != -1) {
-                            int clEnd = headers.indexOf("\n", clIndex);
-                            contentLength = headers.substring(clIndex + 16, clEnd).toInt();
-                        }
-                    }
-                    
-                    String body = "";
-                    if (contentLength > 0) {
-                        unsigned long start = millis();
-                        while (body.length() < (unsigned int)contentLength && millis() - start < 1000) {
-                            if (newClient.available()) {
-                                body += (char)newClient.read();
-                            }
-                        }
-                    }
-                    
-                    handleApiRequest(newClient, method, uri, body);
+                if (_bodyBuf.length() >= (unsigned int)_contentLength) {
+                    handleApiRequest(_httpClient, _method, _uri, _bodyBuf);
+                    _httpClient.stop();
+                    return;
                 }
-                newClient.stop();
+            }
+        }
+
+        // Check for client timeout to prevent dead connections from hanging the state machine
+        static unsigned long lastCheck = 0;
+        if (millis() - lastCheck > 5000) { // 5s timeout
+            lastCheck = millis();
+            if (_httpClient.connected() && _httpClient.available() == 0) {
+                // If we've been in a reading state with no data for too long, clear it
+                _httpClient.stop();
             }
         }
     }
-    
+
+    // 3. Handle persistent WebSocket telemetry
     handleWebSocket();
 }
 
@@ -477,6 +485,8 @@ void WebServer::broadcastTelemetry(const TelemetryData& data) {
     doc["pulseWidth"] = data.pulseWidth;
     doc["throttlePercent"] = data.throttlePercent;
     doc["rssi"] = (WiFi.status() == WL_CONNECTED) ? WiFi.RSSI() : 0;
+    doc["btnStart"] = data.btnStartPressed;
+    doc["btnStop"] = data.btnStopPressed;
 
     // If we are in mapping mode, we send the current PWM/RPM as a mapPoint 
     // whenever a stabilization period (5s) completes.

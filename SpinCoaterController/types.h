@@ -97,6 +97,8 @@ struct TelemetryData {
     const char* errorMessage;
     int profileId;
     bool isMapPoint;
+    bool btnStartPressed;
+    bool btnStopPressed;
 };
 
 #endif

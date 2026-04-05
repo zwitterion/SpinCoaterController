@@ -9,6 +9,7 @@
 #include "SafetyManager.h"
 #include "ExecutionEngine.h"
 #include "WebServer.h"
+#include "ButtonHandler.h"
 #include <WiFiUdp.h>
 #include <ArduinoMDNS.h>
 
@@ -17,7 +18,9 @@
 // ============================================================
 #define PIN_ESC 9
 #define PIN_RPM 8
-#define PIN_RPM_LED 6  // LED, always on, light for the RPM sesnor.
+#define PIN_RPM_LED 7  // Moved from 6 to 7 to free up D6 for Stop button
+#define PIN_BTN_START 5
+#define PIN_BTN_STOP 4
 
 // ============================================================
 // GLOBAL VARIABLES
@@ -34,6 +37,7 @@ ProfileManager profileManager(storage);
 RPMReader rpmReader(PIN_RPM, PIN_RPM_LED);
 ESCController escController(PIN_ESC);
 SafetyManager safetyManager(escController);
+ButtonHandler buttonHandler(PIN_BTN_START, PIN_BTN_STOP);
 ExecutionEngine engine(rpmReader, escController, safetyManager, profileManager, storage);
 WiFiUDP udp;
 MDNS mdns(udp);
@@ -60,6 +64,7 @@ void setup() {
     // 2. Initialize Hardware
     Serial.println(F("Initializing Hardware..."));
 
+    buttonHandler.begin();
     escController.begin(); // Ensures motor is stopped 
     rpmReader.begin();
     safetyManager.begin();
@@ -110,6 +115,16 @@ void setup() {
 // MAIN LOOP
 // ============================================================
 void loop() {
+    // Update Button states
+    TelemetryData tel = engine.getTelemetry();
+    tel.btnStartPressed = buttonHandler.isStartPressed();
+    tel.btnStopPressed = buttonHandler.isStopPressed();
+
+    // Physical button logic: Stop the motor/profile if Stop button is pressed
+    if (tel.btnStopPressed) {
+        engine.stop();
+    }
+
     // 1. Critical Control Loop
     engine.update();
     
@@ -124,6 +139,6 @@ void loop() {
     static unsigned long lastTelemetry = 0;
     if (millis() - lastTelemetry > 100) {
         lastTelemetry = millis();
-        webServer.broadcastTelemetry(engine.getTelemetry());
+        webServer.broadcastTelemetry(tel);
     }
 }
