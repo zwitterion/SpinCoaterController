@@ -51,6 +51,27 @@ Please see printables.com  project ([Printables](https://www.printables.com/mode
 
 #### **Note**: Clicking these links helps me help others. As an Amazon Associate I earn from qualifying purchases, which is a fancy way of saying Amazon throws a few nickels my way if you buy something. I don't keep the change—it all goes to Doctors Without Borders to support their medical teams worldwide.
 
+🧲 Attaching the Two Disc Magnets 
+The trickiest part of the build is installing the two tiny disc magnets into the holes on the bottom of the 3D‑printed coupler. These magnets must be installed with opposite polarities, or the Hall sensor won’t read correctly. Here’s a clean, reliable way to do it:
+1. Identify the Magnet Polarity
+• 	Let the two magnets snap together into a small stack.
+• 	Use a Sharpie to mark the top face of the stack and the bottom face.
+• 	When you separate them, one magnet will have the “top” mark (call it N) and the other will have the “bottom” mark (call it S).
+This gives you two magnets with clearly opposite orientations.
+2. Prepare for Insertion
+• 	Place one magnet on a flat surface with the marked side facing up.
+• 	On the coupler, use a Sharpie to mark the location of the hole on the outer wall.
+This helps you align the magnet with the hole when pressing it in.
+3. Insert the First Magnet
+• 	Position the coupler over the magnet, aligning the hole with your Sharpie mark.
+•   You can add a tiny drop of super glue in the hole—but it’s optional and can be fiddly.
+• 	Press firmly until the magnet snaps into the hole.
+4. Insert the Second Magnet
+• 	This one is harder because it will want to slide toward the first magnet.
+• 	Repeat the same alignment process.
+
+<img src="coupler.png?v=1" alt="Coupler and Magnet Insertion" width="50%">
+
 ## 🔌 Wiring
 
 | Component | Pin Name | Arduino Pin | Notes |
