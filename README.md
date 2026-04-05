@@ -128,7 +128,7 @@ The values generated during **PWM-to-RPM Mapping** provide a baseline for your h
 *   **Calculated Slope (RPM/µs):** Represents motor efficiency. A **decrease** in slope over time suggests increased mechanical resistance (e.g., debris in the spindle), bearing degradation, or a weakening power supply/battery.
 *   **Inferred Start PWM (µs):** Represents the "stiction" point.
     *   **Increasing values:** Indicate that the motor requires more power to overcome static friction, often a sign of old grease or tight bearings.
-    *   **Values significantly far from 1500µs:** Suggest the BLDC-8015A's internal neutral point has drifted and a fresh **BLDC-8015A Calibration** is recommended.
+    
 
 ## 🤖 AI-Assisted Development
 
