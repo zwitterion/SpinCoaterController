@@ -89,6 +89,10 @@
         .btn-stop-ind { border: 2px solid var(--neon-red); }
         .btn-stop-ind.active { background-color: var(--neon-red); box-shadow: 0 0 8px var(--neon-red); }
         .indicator-label { font-size: 0.8em; color: #888; text-transform: uppercase; margin-right: 4px; }
+
+        /* Drag and Drop Styles */
+        .drag-handle { cursor: grab; color: var(--neon-blue); font-size: 1.2em; text-align: center; width: 30px; user-select: none; }
+        tr.dragging { opacity: 0.4; background: #333; border: 1px dashed var(--neon-blue); }
     </style>
 </head>
 <body>
@@ -102,16 +106,7 @@
                 <div>Conn: <span id="connStatus" class="status-val">...</span></div>
             </div>
             
-            <!-- Physical Button Indicators -->
-            <div style="display: flex; justify-content: center; gap: 25px; margin-bottom: 15px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 4px;">
-                <div style="display: flex; align-items: center;">
-                    <span class="indicator-label">Start:</span> <div id="indStart" class="btn-indicator btn-start-ind"></div>
-                </div>
-                <div style="display: flex; align-items: center;">
-                    <span class="indicator-label">Stop:</span> <div id="indStop" class="btn-indicator btn-stop-ind"></div>
-                </div>
-            </div>
-
+                
             <div class="gauge-container" style="position: relative; width: 220px; height: 220px; margin: 10px auto;">
                 <canvas id="rpmGauge" width="220" height="220"></canvas>
                 <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; width: 100%;">
@@ -137,10 +132,22 @@
                 <span style="font-size: 1.5em;">⚠️</span>
                 <span id="errorMsg"></span>
             </div>
+
             <div class="controls">
+                <!-- Physical Button Indicators -->
+                <div style="display: flex; align-items: center;">
+                    <div id="indStart" class="btn-indicator btn-start-ind" title="physical start button indicator"></div>
+                </div>
+
+                <!-- UI Buttons -->
                 <button class="btn-success" onclick="runProfile()">START</button>
                 <button class="btn-warn" onclick="sendCmd('pause')">PAUSE</button>
                 <button class="btn-danger" onclick="sendCmd('stop')">STOP</button>
+
+                <!-- Physical Button Indicators -->
+                <div style="display: flex; align-items: center;">
+                    <div id="indStop" class="btn-indicator btn-stop-ind" title="physical stop button indicator"></div>
+                </div>
             </div>
         </div>
 
@@ -171,6 +178,7 @@
                 <table id="stepsTable">
                     <thead>
                         <tr>
+                            <th></th>
                             <th>RPM</th>
                             <th>Ramp ms</th>
                             <th>Hold ms</th>
@@ -735,13 +743,27 @@
 
         function closeEditor() { document.getElementById('editor').classList.add('hidden'); }
 
+        let dragSrcIdx = -1;
         function renderSteps() {
             const tbody = document.getElementById('stepsBody');
             tbody.innerHTML = '';
             if (!currentProfile.steps) currentProfile.steps = [];
             currentProfile.steps.forEach((s, i) => {
                 const tr = document.createElement('tr');
+                tr.draggable = true;
+                tr.ondragstart = (e) => { dragSrcIdx = i; tr.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; };
+                tr.ondragend = () => tr.classList.remove('dragging');
+                tr.ondragover = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; };
+                tr.ondrop = (e) => {
+                    e.preventDefault();
+                    if (dragSrcIdx !== i && dragSrcIdx !== -1) {
+                        const step = currentProfile.steps.splice(dragSrcIdx, 1)[0];
+                        currentProfile.steps.splice(i, 0, step);
+                        renderSteps();
+                    }
+                };
                 tr.innerHTML = `
+                    <td class="drag-handle">☰</td>
                     <td><input type="number" value="${s.targetRPM}" onchange="updateStep(${i}, 'targetRPM', this.value)" style="width: 70px"></td>
                     <td><input type="number" value="${s.rampDurationMs}" onchange="updateStep(${i}, 'rampDurationMs', this.value)" style="width: 70px"></td>
                     <td><input type="number" value="${s.holdDurationMs}" onchange="updateStep(${i}, 'holdDurationMs', this.value)" style="width: 70px"></td>

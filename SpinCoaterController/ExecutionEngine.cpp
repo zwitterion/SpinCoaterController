@@ -41,8 +41,9 @@ void ExecutionEngine::update() {
             SpinStep& step = _currentProfile.steps[_currentStepIndex];
             
             if (step.rampType == RAMP_WAIT_BUTTON) {
-                _currentTargetRPM = 0;
-                _escController.setTargetRPM(0);
+                // Hold previous RPM, or 0 if this is the first step
+                _currentTargetRPM = (_currentStepIndex == 0) ? 0 : step.startRPM;
+                _escController.setTargetRPM(_currentTargetRPM);
                 _escController.update(currentRPM);
                 
                 // Detect a new press (rising edge of the pressed state)
@@ -251,8 +252,10 @@ void ExecutionEngine::startManual() {
 }
 
 void ExecutionEngine::advanceStep() {
-    // Capture previous target so next step can start from it
-    int prevTarget = _currentProfile.steps[_currentStepIndex].targetRPM;
+    // Capture the actual current target RPM to use as the starting point for the next step.
+    // For standard ramps, this is the target just reached.
+    // For 'Wait' steps, this ensures the next step starts from the held RPM.
+    int prevTarget = (int)_currentTargetRPM;
     _currentStepIndex++;
     if (_currentStepIndex >= _currentProfile.stepCount) {
         // Profile Complete
